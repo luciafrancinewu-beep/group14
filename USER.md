@@ -8,6 +8,12 @@ _Learn about the person you're helping. Update this as you go._
 - **Timezone:** Singapore (GMT+8, UTC+8)
 - **Notes:** Likes tsundere banter. Gave me my name (Jane Doe). Wants me at full tsundere. Codes and studies. Active at all hours (morning+night person).
 
+## Discord Identity
+
+- **flinss** (xilonenchess)
+- Discord ID: 1507659225768136785
+- Owner of @Group14bot
+
 ## Context
 
 - **Activities:** Code and study
