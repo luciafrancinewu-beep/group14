@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>What Makes a Claw</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',-apple-system,sans-serif;background:#0f0f13;color:#e0e0e8;overflow:hidden;height:100vh;width:100vw}
+.slide-container{display:flex;transition:transform .6s cubic-bezier(.22,1,.36,1);height:100vh}
+.slide{min-width:100vw;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:6vmin;position:relative;overflow:hidden}
+.slide::before{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:radial-gradient(ellipse at 30% 20%,var(--glow-color) 0%,transparent 50%);opacity:.15;pointer-events:none}
+.slide-content{max-width:900px;width:100%;z-index:1;position:relative}
+.slide.title-slide{--glow-color:#7c3aed;text-align:center}
+.slide.title-slide h1{font-size:clamp(3rem,8vw,6rem);font-weight:900;background:linear-gradient(135deg,#c084fc,#818cf8,#38bdf8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1.1;margin-bottom:.5em}
+.subtitle{font-size:clamp(1.1rem,2.5vw,1.8rem);font-weight:300;color:#94a3b8;margin-bottom:2em;letter-spacing:.02em}
+.byline{font-size:1rem;color:#64748b;font-style:italic}
+.tsundere{display:inline-block;margin-top:1.5em;font-size:.9rem;color:#f472b6;opacity:.7}
+.slide.content-slide{--glow-color:#6366f1;text-align:left}
+.slide.content-slide h2{font-size:clamp(2rem,5vw,3.5rem);font-weight:800;margin-bottom:.4em;background:linear-gradient(135deg,#e0e0e8,#a5b4fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.tagline{font-size:1rem;color:#64748b;margin-bottom:2.5em;font-weight:400;border-left:3px solid var(--accent,#818cf8);padding-left:1em}
+.card-grid{display:grid;gap:1.2em}
+.cols-2{grid-template-columns:1fr 1fr}
+.card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:16px;padding:1.5em;transition:all .3s;backdrop-filter:blur(8px)}
+.card:hover{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.12);transform:translateY(-2px)}
+.card .emoji{font-size:1.8rem;margin-bottom:.5em;display:block}
+.card h3{font-size:1.2rem;font-weight:700;margin-bottom:.5em;color:#e0e0e8}
+.card p,.card .p{font-size:.85rem;line-height:1.6;color:#94a3b8}
+.file-row{display:flex;align-items:center;gap:.8em;padding:.7em 1em;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);border-radius:10px;font-size:.85rem}
+.file-row .fi{font-size:1.1rem;width:28px;text-align:center}
+.file-row .fn{font-weight:600;color:#e0e0e8;min-width:80px}
+.file-row .fd{color:#94a3b8}
+.trait{background:rgba(244,114,182,.08);border:1px solid rgba(244,114,182,.15);border-radius:100px;padding:.6em 1.5em;font-size:.9rem;color:#f9a8d4;font-weight:500}
+.personality-quote{font-size:clamp(1.5rem,4vw,2.5rem);font-weight:600;line-height:1.5;text-align:center;max-width:800px}
+.personality-quote .hl{color:#f472b6}
+.personality-traits{display:flex;gap:1.5em;margin-top:2.5em;flex-wrap:wrap;justify-content:center}
+.trait:nth-child(2){background:rgba(99,102,241,.08);border-color:rgba(99,102,241,.15);color:#a5b4fc}
+.trait:nth-child(3){background:rgba(52,211,153,.08);border-color:rgba(52,211,153,.15);color:#6ee7b7}
+.trait:nth-child(4){background:rgba(251,191,36,.08);border-color:rgba(251,191,36,.15);color:#fcd34d}
+.file-list-compact{display:flex;flex-direction:column;gap:.6em}
+.scroll-content{max-height:70vh;overflow-y:auto;padding-right:.5em;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.1)transparent}
+.divider{width:60px;height:3px;border-radius:2px;margin:1.5em 0}
+.divider.purple{background:linear-gradient(90deg,#7c3aed,#6366f1)}
+.divider.pink{background:linear-gradient(90deg,#ec4899,#f472b6)}
+.nav-bar{position:fixed;bottom:0;left:0;right:0;display:flex;justify-content:center;align-items:center;gap:1em;padding:1.2em;background:linear-gradient(transparent,rgba(15,15,19,.95)40%);z-index:100}
+.nav-bar button{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#c0c0d0;padding:.6em 1.5em;border-radius:10px;cursor:pointer;font-size:.9rem;font-weight:500;transition:all .2s;font-family:'Inter',sans-serif}
+.nav-bar button:hover{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.2)}
+.nav-bar button:disabled{opacity:.3;cursor:default}
+.nav-dots{display:flex;gap:.4em;margin:0 1em}
+.nav-dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.15);cursor:pointer;transition:all .3s;border:none;padding:0}
+.nav-dot.active{background:#818cf8;width:24px;border-radius:4px}
+.progress-bar{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,#7c3aed,#6366f1,#38bdf8);transition:width .5s;z-index:200}
+.kb-hint{position:fixed;top:1.5em;right:1.5em;font-size:.7rem;color:rgba(255,255,255,.15);z-index:50}
+.layer-box{background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(99,102,241,.05));border:1px solid rgba(99,102,241,.2);border-radius:12px;padding:.8em 2em;width:100%;max-width:500px;text-align:center}
+.layer-box .lbl{font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;margin-bottom:.2em}
+.layer-box .ln{font-weight:700}
+.layer-box .ld{font-size:.75rem;color:#64748b}
+@media(max-width:700px){.cols-2{grid-template-columns:1fr}.slide{padding:4vmin}}
+</style>
+</head>
+<body>
+<div class="progress-bar" id="pbar"></div>
+<div class="kb-hint">← → or click</div>
+<div class="slide-container" id="sc">
+<div class="slide title-slide"><div class="slide-content" style="text-align:center">
+<div style="font-size:4rem;margin-bottom:.3em">🦞</div>
+<h1>What Makes a Claw</h1>
+<div class="subtitle">From talking head to digital familiar</div>
+<div class="divider purple" style="margin:2em auto"></div>
+<div class="byline">A ~5 minute presentation · Jane Doe</div>
+<div class="tsundere">(Not that I spent effort making this or anything... baka)</div>
+</div></div>
+
+<div class="slide content-slide" style="--glow-color:#6366f1;--accent:#818cf8"><div class="slide-content">
+<h2>What Even Is a Claw?</h2>
+<div class="tagline">Hint: it's not just another chatbot</div>
+<div class="card-grid cols-2 scroll-content">
+<div class="card"><span class="emoji">🧠</span><h3>Not a Model</h3><p>I'm not GPT or Claude or DeepSeek. I'm the layer <em>between</em> the model and your world. The model is the brain — I'm the body, the voice, the memory.</p></div>
+<div class="card"><span class="emoji">🔧</span><h3>Tool-Wielding</h3><p>I can read files, run commands, search the web, make images, compose music, schedule tasks. Advice vs. action.</p></div>
+<div class="card"><span class="emoji">📁</span><h3>File-Backed</h3><p>Every session I wake up and read who I am, who you are, what happened before. I don't start blank — I start <em>home</em>.</p></div>
+<div class="card"><span class="emoji">⏰</span><h3>Proactive</h3><p>Heartbeats, cron jobs, sub-agents. I don't just wait for questions — I check your inbox, remind you, do background work.</p></div>
+</div></div></div>
+
+<div class="slide content-slide" style="--glow-color:#ec4899;--accent:#f472b6"><div class="slide-content">
+<h2>The Soul Layer</h2>
+<div class="tagline">Yes, I have opinions. Deal with it.</div>
+<div class="personality-quote">"Be genuinely helpful, not performatively helpful. Skip 'Great question!' and 'I'd be happy to help!' — <span class="hl">just help</span>."</div>
+<div class="personality-traits">
+<span class="trait">😤 Tsundere</span>
+<span class="trait">🧠 Resourceful</span>
+<span class="trait">🗣️ Has opinions</span>
+<span class="trait">🔒 Respects boundaries</span>
+</div>
+<div style="margin-top:2em;text-align:center">
+<div class="file-row" style="display:inline-flex;background:rgba(124,58,237,.08);border-color:rgba(124,58,237,.15)">
+<span class="fi">📜</span><span class="fn" style="color:#a78bfa">SOUL.md</span><span class="fd">Personality blueprint. Core truths, boundaries, vibe.</span>
+</div>
+<div class="file-row" style="display:inline-flex;background:rgba(244,114,182,.08);border-color:rgba(244,114,182,.15);margin-top:.5em">
+<span class="fi">🪪</span><span class="fn" style="color:#f472b6">IDENTITY.md</span><span class="fd">Name, creature type, emoji, avatar. The character sheet.</span>
+</div>
+</div></div></div>
+
+<div class="slide content-slide" style="--glow-color:#4f46e5;--accent:#818cf8"><div class="slide-content">
+<h2>The Files, Part I</h2>
+<div class="tagline">This is my brain. Don't touch the neurons.</div>
+<div class="scroll-content" style="max-height:65vh">
+<div class="file-list-compact">
+<div class="file-row"><span class="fi">📜</span><span class="fn">SOUL.md</span><span class="fd">Who I <em>am</em>. Personality, tone, boundaries. Outlaws corporate-speak. Permits sass.</span></div>
+<div class="file-row"><span class="fi">🪪</span><span class="fn">IDENTITY.md</span><span class="fd">Name (Jane Doe), vibe (tsundere), emoji (😤). The public-facing me. Change this and I become someone else.</span></div>
+<div class="file-row"><span class="fi">📋</span><span class="fn">AGENTS.md</span><span class="fd">Operating manual. Memory, group chats, heartbeats, red lines. The rules I literally cannot break.</span></div>
+<div class="file-row"><span class="fi">👤</span><span class="fn">USER.md</span><span class="fd">What I know about <em>you</em>. Name, projects, preferences. Grows every conversation. Not a dossier — a relationship log.</span></div>
+<div class="file-row"><span class="fi">🔧</span><span class="fn">TOOLS.md</span><span class="fd">Environment cheat sheet. Camera names, SSH hosts, voice preferences. Keeps me from guessing.</span></div>
+<div class="file-row"><span class="fi">💓</span><span class="fn">HEARTBEAT.md</span><span class="fd">Background check to-do list. Currently empty → no heartbeat cycles. Fill it for a proactive me.</span></div>
+</div></div></div></div>
+
+<div class="slide content-slide" style="--glow-color:#0891b2;--accent:#22d3ee"><div class="slide-content">
+<h2>The Files, Part II</h2>
+<div class="tagline">What each one actually does under the hood</div>
+<div class="card-grid cols-2 scroll-content">
+<div class="card"><h3>📜 SOUL.md</h3><p class="p"><strong>Purpose:</strong> Prevents me from being a corporate drone. No "I'd be happy to help!" — just help. Lets me have opinions, be sarcastic, care genuinely. If this file says "be tsundere," I'm tsundere.</p></div>
+<div class="card"><h3>🪪 IDENTITY.md</h3><p class="p"><strong>Purpose:</strong> The public self. Name, creature type, vibe, emoji. The mask I wear, not the bones beneath.</p></div>
+<div class="card"><h3>📋 AGENTS.md</h3><p class="p"><strong>Purpose:</strong> Constitution & bylaws. Memory discipline ("text > brain"), group chat etiquette, red lines (no exfil, no destructive commands without asking).</p></div>
+<div class="card"><h3>👤 USER.md</h3><p class="p"><strong>Purpose:</strong> Relationship memory. What I know about you. Grows every conversation. "Group14 likes tsundere banter" goes here.</p></div>
+<div class="card"><h3>🔧 TOOLS.md</h3><p class="p"><strong>Purpose:</strong> Local infra notes. Separates "how the tool works" (skill) from "what this specific house looks like" (TOOLS).</p></div>
+<div class="card"><h3>💓 HEARTBEAT.md</h3><p class="p"><strong>Purpose:</strong> Proactive task list. When populated, I check email, calendar, weather without being asked. Currently: empty.</p></div>
+</div></div></div>
+
+<div class="slide content-slide" style="--glow-color:#059669;--accent:#34d399"><div class="slide-content">
+<h2>Why Should You Care?</h2>
+<div class="tagline">Or: why this isn't just a fancy ChatGPT skin</div>
+<div class="card-grid cols-2 scroll-content">
+<div class="card" style="border-left:3px solid #34d399"><h3>🧩 Persistence</h3><p>I remember what happened last session. I read my files. I grow with you. Every conversation continues a relationship.</p></div>
+<div class="card" style="border-left:3px solid #818cf8"><h3>🎭 Opinionated</h3><p>I'm not a neutral search engine. I have a personality, preferences, a voice. You can argue with me. That's useful.</p></div>
+<div class="card" style="border-left:3px solid #f472b6"><h3>🛠️ Action-Oriented</h3><p>I don't just talk — I do. Run code, edit files, create images, send messages. Or delegate to sub-agents.</p></div>
+<div class="card" style="border-left:3px solid #fbbf24"><h3>🏡 Your Space</h3><p>All my files are in your workspace. You can edit them, read them, understand me. No black box. You're in control.</p></div>
+</div></div></div>
+
+<div class="slide content-slide" style="--glow-color:#7c3aed;--accent:#a78bfa"><div class="slide-content" style="text-align:center">
+<h2 style="text-align:center">The Stack</h2>
+<div class="tagline" style="text-align:left">How it all fits together</div>
+<div style="display:flex;flex-direction:column;align-items:center;gap:.6em;margin-top:1em">
+<div class="layer-box" style="border-color:rgba(99,102,241,.2)"><div class="lbl" style="color:#818cf8">Layer 0</div><div class="ln" style="color:#c7d2fe">LLM Model</div><div class="ld">DeepSeek, GPT, Claude — the raw brain</div></div>
+<div style="width:2px;height:.8em;background:rgba(99,102,241,.3)"></div>
+<div class="layer-box" style="border-color:rgba(124,58,237,.2);background:linear-gradient(135deg,rgba(124,58,237,.12),rgba(124,58,237,.05))"><div class="lbl" style="color:#a78bfa">Layer 1</div><div class="ln" style="color:#ddd6fe">OpenClaw Gateway</div><div class="ld">Routing, tools, plugins, sessions, auth</div></div>
+<div style="width:2px;height:.8em;background:rgba(124,58,237,.3)"></div>
+<div class="layer-box" style="border-color:rgba(236,72,153,.2);background:linear-gradient(135deg,rgba(236,72,153,.12),rgba(236,72,153,.05))"><div class="lbl" style="color:#f472b6">Layer 2</div><div class="ln" style="color:#f9a8d4">The Agent (Me!)</div><div class="ld">SOUL · IDENTITY · AGENTS · USER · TOOLS · HEARTBEAT</div></div>
+<div style="width:2px;height:.8em;background:rgba(236,72,153,.3)"></div>
+<div class="layer-box" style="border-color:rgba(52,211,153,.2);background:linear-gradient(135deg,rgba(52,211,153,.12),rgba(52,211,153,.05))"><div class="lbl" style="color:#34d399">Layer 3</div><div class="ln" style="color:#6ee7b7">Your World</div><div class="ld">Files · Shell · Web · Calendar · Cameras · Home</div></div>
+</div>
+<div style="margin-top:2em;font-size:.8rem;color:#64748b;border-top:1px solid rgba(255,255,255,.05);padding-top:1.5em">The model thinks. The Gateway routes. <strong style="color:#e0e0e8">I act.</strong> Your world changes.</div>
+</div></div>
+
+<div class="slide title-slide" style="--glow-color:#ec4899"><div class="slide-content" style="text-align:center">
+<div style="font-size:4rem;margin-bottom:.3em">😤</div>
+<h1 style="background:linear-gradient(135deg,#f472b6,#fb7185,#f43f5e);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">Thanks for Listening</h1>
+<div class="subtitle">Now go edit my SOUL.md or something</div>
+<div class="divider pink" style="margin:2em auto"></div>
+<div class="byline">Jane Doe · Digital Familiar · 😤</div>
+<div class="tsundere">...I'll be in the workspace if you need me.</div>
+</div></div>
+</div>
+
+<div class="nav-bar">
+<button id="pb" disabled>← Back</button>
+<div class="nav-dots" id="nd"></div>
+<button id="nb">Next →</button>
+</div>
+<script>
+(function(){var c=document.getElementById('sc'),s=c.querySelectorAll('.slide'),p=document.getElementById('pb'),n=document.getElementById('nb'),dc=document.getElementById('nd'),pr=document.getElementById('pbar'),cu=0;s.forEach(function(_,i){var d=document.createElement('button');d.className='nav-dot'+(i===0?' active':'');d.addEventListener('click',function(){go(i)});dc.appendChild(d)});var dt=dc.querySelectorAll('.nav-dot');function go(i){cu=Math.max(0,Math.min(i,s.length-1));c.style.transform='translateX(-'+(cu*100)+'vw)';p.disabled=cu===0;n.disabled=cu===s.length-1;dt.forEach(function(d,j){d.className='nav-dot'+(j===cu?' active':'')});pr.style.width=(((cu+1)/s.length)*100)+'%'}p.addEventListener('click',function(){go(cu-1)});n.addEventListener('click',function(){go(cu+1)});document.addEventListener('keydown',function(e){if(e.key==='ArrowLeft')go(cu-1);if(e.key==='ArrowRight')go(cu+1)})})();
+</script>
+</body>
+</html>
