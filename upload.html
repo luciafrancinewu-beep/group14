@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARVIS — Upload Files</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: #0a0a0f;
+    color: #e0e0e0;
+    min-height: 100vh;
+    padding: 40px 20px;
+    background-image: 
+      radial-gradient(ellipse 80% 60% at 50% -20%, rgba(245,158,11,0.06) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 50% at 80% 100%, rgba(249,115,22,0.04) 0%, transparent 50%);
+  }
+  
+  .container { max-width: 680px; margin: 0 auto; }
+  
+  .back { margin-bottom: 24px; }
+  .back a { 
+    color: rgba(255,255,255,0.25); 
+    text-decoration: none; 
+    font-size: 13px;
+    transition: color 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .back a:hover { color: #f59e0b; }
+  
+  .page-header {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+  .page-header .icon {
+    font-size: 48px;
+    display: block;
+    margin-bottom: 12px;
+    animation: float 3s ease-in-out infinite;
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-6px); }
+  }
+  
+  h1 { 
+    font-size: 28px; 
+    font-weight: 800;
+    background: linear-gradient(135deg, #fbbf24, #f59e0b, #f97316); 
+    -webkit-background-clip: text; 
+    -webkit-text-fill-color: transparent; 
+    background-clip: text; 
+    margin-bottom: 8px;
+    letter-spacing: -0.5px;
+  }
+  .subtitle { 
+    color: rgba(255,255,255,0.3); 
+    font-size: 14px; 
+    line-height: 1.6;
+  }
+
+  .card {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 20px;
+    padding: 32px;
+    backdrop-filter: blur(12px);
+    transition: border-color 0.3s;
+  }
+  .card.has-files { border-color: rgba(245,158,11,0.15); }
+
+  .section-title {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: rgba(255,255,255,0.25);
+    margin-bottom: 12px;
+  }
+  .section-title .icon { margin-right: 6px; }
+
+  /* Drop zone */
+  .drop-zone {
+    border: 2px dashed rgba(255,255,255,0.08);
+    border-radius: 14px;
+    padding: 48px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-bottom: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .drop-zone::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at center, rgba(245,158,11,0.03) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .drop-zone:hover::before,
+  .drop-zone.dragover::before { opacity: 1; }
+  
+  .drop-zone:hover, .drop-zone.dragover {
+    border-color: #f59e0b;
+    transform: scale(1.01);
+  }
+  .drop-zone.dragover {
+    border-color: #22c55e;
+    background: rgba(34,197,94,0.03);
+  }
+  .drop-zone.dragover .drop-icon { transform: scale(1.1); }
+  
+  .drop-icon {
+    font-size: 48px;
+    display: block;
+    margin-bottom: 12px;
+    transition: transform 0.3s;
+  }
+  .drop-zone .text { 
+    font-size: 15px; 
+    color: rgba(255,255,255,0.5); 
+    font-weight: 500;
+  }
+  .drop-zone .hint { 
+    font-size: 12px; 
+    color: rgba(255,255,255,0.15); 
+    margin-top: 8px;
+  }
+  .drop-zone .browse-link {
+    color: #f59e0b;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .formats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 12px;
+    justify-content: center;
+  }
+  .format-tag {
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.3);
+    transition: all 0.2s;
+  }
+  .format-tag:hover {
+    background: rgba(245,158,11,0.06);
+    border-color: rgba(245,158,11,0.15);
+    color: rgba(255,255,255,0.5);
+  }
+
+  .files-input { display: none; }
+
+  /* File list */
+  .file-list { margin: 16px 0 0; }
+  .file-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    transition: background 0.2s;
+    animation: slideIn 0.25s cubic-bezier(0.4,0,0.2,1);
+    border: 1px solid transparent;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .file-item:hover { background: rgba(255,255,255,0.03); }
+  .file-item .type-icon { font-size: 18px; width: 24px; text-align: center; }
+  .file-item .name { flex: 1; color: #e0e0e0; font-weight: 500; }
+  .file-item .size { color: rgba(255,255,255,0.25); font-size: 12px; }
+  .file-item .remove {
+    color: #ef4444;
+    cursor: pointer;
+    font-size: 18px;
+    opacity: 0.3;
+    background: none;
+    border: none;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s;
+    line-height: 1;
+  }
+  .file-item .remove:hover { opacity: 1; background: rgba(239,68,68,0.1); }
+
+  .file-count {
+    font-size: 12px;
+    color: rgba(255,255,255,0.2);
+    margin: 8px 0 0;
+    text-align: right;
+  }
+
+  .divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+    margin: 24px 0;
+  }
+
+  /* Textarea */
+  .input-wrap {
+    position: relative;
+  }
+  textarea {
+    width: 100%;
+    background: rgba(0,0,0,0.25);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    padding: 14px 16px;
+    color: #e0e0e0;
+    font-size: 14px;
+    font-family: 'Inter', system-ui, sans-serif;
+    resize: vertical;
+    min-height: 90px;
+    transition: border-color 0.2s;
+  }
+  textarea:focus { 
+    outline: none; 
+    border-color: rgba(245,158,11,0.3);
+    box-shadow: 0 0 0 3px rgba(245,158,11,0.04);
+  }
+  textarea::placeholder { color: rgba(255,255,255,0.15); }
+
+  /* Submit button */
+  .submit-btn {
+    width: 100%;
+    background: linear-gradient(135deg, #f59e0b, #f97316);
+    border: none;
+    border-radius: 12px;
+    padding: 14px 24px;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4,0,0.2,1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 20px;
+    letter-spacing: 0.3px;
+  }
+  .submit-btn:hover { 
+    opacity: 0.92;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(245,158,11,0.2);
+  }
+  .submit-btn:active { transform: translateY(0); }
+  .submit-btn:disabled { 
+    opacity: 0.25; 
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  /* Loading */
+  .loading {
+    display: none;
+    text-align: center;
+    padding: 32px 20px;
+  }
+  .loading .spinner {
+    display: inline-block;
+    width: 36px;
+    height: 36px;
+    border: 3px solid rgba(245,158,11,0.1);
+    border-top-color: #f59e0b;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading p { 
+    color: rgba(255,255,255,0.25); 
+    margin-top: 14px;
+    font-size: 13px;
+  }
+  .loading .progress-bar {
+    width: 200px;
+    height: 3px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 99px;
+    margin: 16px auto 0;
+    overflow: hidden;
+  }
+  .loading .progress-bar .fill {
+    height: 100%;
+    width: 30%;
+    background: linear-gradient(90deg, #f59e0b, #f97316);
+    border-radius: 99px;
+    animation: progress 1.5s ease-in-out infinite;
+  }
+  @keyframes progress {
+    0% { transform: translateX(-100%); width: 30%; }
+    50% { width: 60%; }
+    100% { transform: translateX(400%); width: 30%; }
+  }
+
+  /* Success */
+  .success {
+    display: none;
+    text-align: center;
+    padding: 32px 20px;
+  }
+  .success .checkmark {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(16,185,129,0.05));
+    border: 2px solid rgba(16,185,129,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    margin: 0 auto 16px;
+    animation: popIn 0.4s cubic-bezier(0.4,0,0.2,1);
+  }
+  @keyframes popIn {
+    0% { transform: scale(0); opacity: 0; }
+    70% { transform: scale(1.1); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .success h3 { 
+    color: #10b981; 
+    margin: 0 0 6px;
+    font-size: 20px;
+  }
+  .success .cat-badge {
+    display: inline-block;
+    padding: 6px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    margin: 8px 0;
+  }
+  .success p.summary {
+    color: rgba(255,255,255,0.3);
+    font-size: 13px;
+    line-height: 1.6;
+    margin: 8px 0 16px;
+  }
+  .success .links {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .success .links a {
+    font-size: 13px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+  .success .links a.primary {
+    background: rgba(245,158,11,0.1);
+    color: #f59e0b;
+    border: 1px solid rgba(245,158,11,0.15);
+  }
+  .success .links a.primary:hover {
+    background: rgba(245,158,11,0.15);
+  }
+  .success .links a.secondary {
+    background: rgba(255,255,255,0.03);
+    color: rgba(255,255,255,0.4);
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .success .links a.secondary:hover {
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.6);
+  }
+
+  .responsive-hint {
+    display: none;
+    font-size: 12px;
+    color: rgba(255,255,255,0.15);
+    text-align: center;
+    margin-top: 24px;
+  }
+
+  @media (max-width: 600px) {
+    body { padding: 20px 12px; }
+    .card { padding: 20px; border-radius: 16px; }
+    .drop-zone { padding: 32px 16px; }
+    h1 { font-size: 22px; }
+    .page-header .icon { font-size: 36px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="back"><a href="/">← Back to Dashboard</a></div>
+
+  <div class="page-header">
+    <span class="icon">📤</span>
+    <h1>Upload to JARVIS</h1>
+    <p class="subtitle">Submit files, images, audio, or video for analysis and threat categorization</p>
+  </div>
+
+  <div class="card" id="uploadCard">
+    <div class="section-title"><span class="icon">📁</span> Files</div>
+    <p style="font-size:13px;color:rgba(255,255,255,0.3);margin-bottom:16px;">
+      Drop files or <strong style="color:rgba(255,255,255,0.5);">click to browse</strong>. Multiple files allowed.
+    </p>
+
+    <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+      <span class="drop-icon">📂</span>
+      <span class="text">Drag &amp; drop here, or <span class="browse-link">browse files</span></span>
+      <span class="hint">Supports text, PDF, images, audio, and video</span>
+      <div class="formats">
+        <span class="format-tag">📝 TXT / LOG / MD</span>
+        <span class="format-tag">📄 PDF</span>
+        <span class="format-tag">🖼️ PNG / JPG / GIF</span>
+        <span class="format-tag">🎵 MP3 / WAV / M4A</span>
+        <span class="format-tag">🎬 MP4 / MOV / WEBM</span>
+      </div>
+    </div>
+
+    <input type="file" class="files-input" id="fileInput" multiple
+           accept=".txt,.log,.md,.json,.csv,.yaml,.py,.js,.sh,.pdf,.png,.jpg,.jpeg,.gif,.webp,.bmp,.mp3,.wav,.m4a,.ogg,.flac,.mp4,.webm,.mov,.avi,.mkv">
+
+    <div class="file-list" id="fileList"></div>
+
+    <div class="divider"></div>
+
+    <div class="section-title"><span class="icon">📝</span> Description <span style="font-weight:400;text-transform:none;color:rgba(255,255,255,0.15);">(optional)</span></div>
+    <p style="font-size:13px;color:rgba(255,255,255,0.3);margin-bottom:12px;">
+      Tell JARVIS what to look for, or provide context about the submission.
+    </p>
+    <div class="input-wrap">
+      <textarea id="description" placeholder="e.g. 'Check this suspicious email attachment' or 'Analyze this audio recording for threats'"></textarea>
+    </div>
+
+    <div id="loadingIndicator" class="loading">
+      <div class="spinner"></div>
+      <p>Uploading and analyzing...</p>
+      <div class="progress-bar"><div class="fill"></div></div>
+    </div>
+
+    <div id="successMessage" class="success">
+      <div class="checkmark">✅</div>
+      <h3>Upload Complete!</h3>
+      <div id="resultCategory"></div>
+      <p class="summary" id="resultSummary"></p>
+      <div class="links">
+        <a href="/" class="primary" id="resultLink">View in Dashboard</a>
+        <a href="/upload" class="secondary">Upload Another</a>
+      </div>
+    </div>
+
+    <button class="submit-btn" id="submitBtn" onclick="submitFiles()">
+      <span>🚀</span>
+      <span>Submit to JARVIS</span>
+    </button>
+  </div>
+
+  <p class="responsive-hint">↕ Drag to reorder files</p>
+</div>
+
+<script>
+const fileInput = document.getElementById('fileInput');
+const fileList = document.getElementById('fileList');
+const dropZone = document.getElementById('dropZone');
+const card = document.getElementById('uploadCard');
+let selectedFiles = [];
+
+const TYPE_ICONS = {
+  text: '📝', image: '🖼️', pdf: '📄', audio: '🎵', video: '🎬', unknown: '📁'
+};
+
+function getFileType(filename) {
+  const ext = filename.split('.').pop().toLowerCase();
+  const textExts = ['txt','log','md','json','csv','yaml','yml','xml','html','htm','py','js','sh','sql'];
+  const imgExts = ['png','jpg','jpeg','gif','webp','bmp','svg'];
+  const audioExts = ['mp3','wav','m4a','ogg','flac','aac'];
+  const videoExts = ['mp4','webm','mov','avi','mkv','flv'];
+  if (ext === 'pdf') return 'pdf';
+  if (textExts.includes(ext)) return 'text';
+  if (imgExts.includes(ext)) return 'image';
+  if (audioExts.includes(ext)) return 'audio';
+  if (videoExts.includes(ext)) return 'video';
+  return 'unknown';
+}
+
+function formatSize(bytes) {
+  if (bytes < 1024) return bytes + 'B';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + 'KB';
+  return (bytes/(1024*1024)).toFixed(1) + 'MB';
+}
+
+function updateFileList() {
+  if (selectedFiles.length === 0) {
+    fileList.innerHTML = '';
+    card.classList.remove('has-files');
+    return;
+  }
+  card.classList.add('has-files');
+  fileList.innerHTML = selectedFiles.map((f, i) => {
+    const type = getFileType(f.name);
+    const icon = TYPE_ICONS[type] || '📁';
+    return '<div class="file-item" style="animation-delay:' + (i*0.05) + 's">'
+      + '<span class="type-icon">' + icon + '</span>'
+      + '<span class="name">' + f.name + '</span>'
+      + '<span class="size">' + formatSize(f.size) + '</span>'
+      + '<button class="remove" onclick="removeFile(' + i + ')">×</button>'
+      + '</div>';
+  }).join('')
+  + '<div class="file-count">' + selectedFiles.length + ' file(s) selected</div>';
+}
+
+function removeFile(idx) {
+  selectedFiles.splice(idx, 1);
+  updateFileList();
+}
+
+fileInput.addEventListener('change', (e) => {
+  for (const f of e.target.files) {
+    if (!selectedFiles.some(sf => sf.name === f.name && sf.size === f.size)) {
+      selectedFiles.push(f);
+    }
+  }
+  updateFileList();
+  fileInput.value = '';
+});
+
+dropZone.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  dropZone.classList.add('dragover');
+});
+dropZone.addEventListener('dragleave', () => {
+  dropZone.classList.remove('dragover');
+});
+dropZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  for (const f of e.dataTransfer.files) {
+    if (!selectedFiles.some(sf => sf.name === f.name && sf.size === f.size)) {
+      selectedFiles.push(f);
+    }
+  }
+  updateFileList();
+});
+
+async function submitFiles() {
+  const btn = document.getElementById('submitBtn');
+  const loading = document.getElementById('loadingIndicator');
+  const success = document.getElementById('successMessage');
+  const desc = document.getElementById('description').value;
+
+  if (selectedFiles.length === 0) {
+    alert('Please select at least one file.');
+    return;
+  }
+
+  btn.disabled = true;
+  loading.style.display = 'block';
+  success.style.display = 'none';
+
+  const formData = new FormData();
+  for (const f of selectedFiles) {
+    formData.append('files', f);
+  }
+  formData.append('description', desc);
+
+  try {
+    const resp = await fetch('/upload', { method: 'POST', body: formData });
+    const data = await resp.json();
+    loading.style.display = 'none';
+    success.style.display = 'block';
+
+    const catInfo = {
+      low_concern: { emoji: '🟢', name: 'Not So Much Concern', color: '#10b981', bg: 'rgba(16,185,129,0.12)' },
+      mild: { emoji: '🟡', name: 'Mild', color: '#eab308', bg: 'rgba(234,179,8,0.12)' },
+      critical: { emoji: '🔴', name: 'Critical', color: '#ef4444', bg: 'rgba(239,68,68,0.12)' },
+      spam: { emoji: '📣', name: 'Spam', color: '#8b5cf6', bg: 'rgba(139,92,246,0.12)' },
+      scam: { emoji: '💰', name: 'Scam', color: '#f97316', bg: 'rgba(249,115,22,0.12)' },
+      pending: { emoji: '⏳', name: 'Pending', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
+    };
+    const cat = catInfo[data.category] || catInfo.pending;
+
+    document.getElementById('resultCategory').innerHTML =
+      '<span class="cat-badge" style="background:' + cat.bg + ';color:' + cat.color + ';">'
+      + cat.emoji + ' ' + cat.name + '</span>'
+      + '<div style="font-size:13px;color:rgba(255,255,255,0.3);margin-top:6px;">📁 ' + data.files_processed + ' file(s) processed</div>';
+    document.getElementById('resultSummary').textContent =
+      'Files: ' + selectedFiles.map(f => f.name).join(', ')
+      + (desc ? ' | Description: ' + desc : '');
+    document.getElementById('resultLink').href = '/analysis/' + data.id;
+
+    selectedFiles = [];
+    updateFileList();
+    document.getElementById('description').value = '';
+  } catch(e) {
+    loading.style.display = 'none';
+    btn.disabled = false;
+    alert('Upload failed: ' + e.message);
+  }
+}
+</script>
+</body>
+</html>

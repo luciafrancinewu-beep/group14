@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARVIS — Intelligence Triage System</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  font-family:'Inter',-apple-system,sans-serif;
+  background:#0a0a0f;
+  color:#e0e0e0;
+  overflow:hidden;
+  height:100vh;
+  width:100vw;
+  position:relative;
+}
+/* Hexagonal nanotech grid */
+body::before{
+  content:'';position:fixed;top:0;left:0;width:100%;height:100%;
+  background-image:
+    repeating-linear-gradient(60deg,transparent,transparent 20px,rgba(255,60,60,0.012) 20px,rgba(255,60,60,0.012) 21px),
+    repeating-linear-gradient(-60deg,transparent,transparent 20px,rgba(255,60,60,0.012) 20px,rgba(255,60,60,0.012) 21px),
+    repeating-linear-gradient(0deg,transparent,transparent 35px,rgba(255,60,60,0.008) 35px,rgba(255,60,60,0.008) 36px);
+  pointer-events:none;z-index:0;
+}
+/* Large arc reactor watermark */
+.stark-watermark{position:fixed;bottom:-60px;right:-60px;width:500px;height:500px;border-radius:50%;border:2px solid rgba(0,150,255,0.03);pointer-events:none;z-index:0}
+.stark-watermark::before{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:300px;height:300px;border-radius:50%;border:1px solid rgba(0,150,255,0.02)}
+.stark-watermark::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:150px;height:150px;border-radius:50%;border:1px solid rgba(255,60,60,0.02)}
+/* Corner accents */
+.corner-deco{position:fixed;pointer-events:none;z-index:0;width:100px;height:100px;opacity:.05}
+.corner-deco.tl{top:15px;left:15px;border-top:2px solid #ff4444;border-left:2px solid #ff4444}
+.corner-deco.tr{top:15px;right:15px;border-top:2px solid #0096ff;border-right:2px solid #0096ff}
+.corner-deco.bl{bottom:15px;left:15px;border-bottom:2px solid #0096ff;border-left:2px solid #0096ff}
+.corner-deco.br{bottom:15px;right:15px;border-bottom:2px solid #ff4444;border-right:2px solid #ff4444}
+/* Iron Man helmet watermark */
+.helmet-watermark{position:fixed;top:50%;left:5%;transform:translateY(-50%);width:180px;height:200px;pointer-events:none;z-index:0;opacity:.02}
+.helmet-watermark::before{content:'';position:absolute;top:0;left:20%;right:20%;height:40%;background:linear-gradient(135deg,transparent 40%,#ff4444 40%,#ff4444 60%,transparent 60%);border-radius:50% 50% 0 0}
+.helmet-watermark::after{content:'';position:absolute;bottom:0;left:10%;right:10%;height:65%;background:linear-gradient(135deg,transparent 38%,#0096ff 38%,#0096ff 62%,transparent 62%);clip-path:polygon(10% 0,90% 0,100% 100%,0 100%)}
+/* Slide decorations */
+.slide .im-deco{position:absolute;width:80px;height:80px;pointer-events:none}
+.slide .im-deco.tri{top:10px;left:10px}.slide .im-deco.tri::before{content:'▸';position:absolute;color:rgba(255,68,68,0.04);font-size:24px;left:0;top:-5px}
+.slide .im-deco.bra{bottom:10px;right:10px}.slide .im-deco.bra::before{content:'◂';position:absolute;color:rgba(0,150,255,0.04);font-size:24px;right:0;bottom:-5px}
+.slide-react{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:250px;height:250px;border-radius:50%;border:1px solid rgba(0,150,255,0.008);pointer-events:none;z-index:0}
+.slide-react::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:80px;height:80px;border-radius:50%;background:radial-gradient(circle,rgba(0,150,255,0.015),transparent)}
+/* Arc Reactor Transition Overlay */
+#ar-overlay{position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:200;pointer-events:none;opacity:0;transition:opacity .3s;display:flex;align-items:center;justify-content:center;background:rgba(5,5,10,0.25)}
+#ar-overlay.active{opacity:1}#ar-canvas{width:100%;height:100%}
+.slides{display:flex;transition:transform .8s cubic-bezier(.22,1,.36,1);height:100vh;position:relative;z-index:1}
+.slide{min-width:100vw;height:100vh;padding:60px 80px;display:flex;flex-direction:column;justify-content:center;position:relative;overflow:hidden}
+.slide-content{position:relative;z-index:1;max-width:960px;margin:0 auto;width:100%}
+/* Nav */
+.nav{position:fixed;bottom:40px;left:50%;transform:translateX(-50%);display:flex;gap:10px;align-items:center;z-index:100;background:rgba(10,10,15,0.9);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);padding:12px 28px;border-radius:999px;border:1px solid rgba(255,68,68,0.1);box-shadow:0 0 40px rgba(0,0,0,0.4)}
+.nav-dot{width:10px;height:10px;border-radius:50%;background:rgba(0,150,255,0.1);cursor:pointer;transition:all .3s;border:none;padding:0;position:relative}
+.nav-dot.active{background:#ff4444;box-shadow:0 0 20px rgba(255,68,68,0.6)}
+.nav-dot:hover{background:rgba(0,150,255,0.3)}
+.nav-dot.active::after{content:'';position:absolute;top:-4px;left:-4px;width:18px;height:18px;border:1px solid rgba(255,68,68,0.3);border-radius:50%;animation:nav-pulse 2s ease-in-out infinite}
+@keyframes nav-pulse{0%,100%{transform:scale(1);opacity:.5}50%{transform:scale(1.4);opacity:0}}
+.nav-arrow{background:none;border:1px solid rgba(0,150,255,0.1);color:#e0e0e0;width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.nav-arrow:hover{background:rgba(255,68,68,0.08);border-color:#ff4444;color:#ff4444;box-shadow:0 0 20px rgba(255,68,68,0.1)}
+.nav-arrow:disabled{opacity:.2;cursor:default}
+.slide-number{font-size:13px;color:rgba(0,150,255,0.2);font-weight:600;min-width:40px;text-align:center;font-family:'JetBrains Mono',monospace}
+/* Title */
+.title-slide{text-align:center}
+.title-slide .badge{display:inline-block;background:rgba(255,68,68,0.08);color:#ff4444;font-size:11px;font-weight:600;padding:6px 18px;border-radius:999px;margin-bottom:20px;letter-spacing:2px;text-transform:uppercase;border:1px solid rgba(255,68,68,0.15)}
+.title-slide h1{font-size:72px;font-weight:900;background:linear-gradient(135deg,#ff4444,#ff6b35,#ffaa00);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:8px;letter-spacing:-1px;filter:drop-shadow(0 0 40px rgba(255,68,68,0.15))}
+.title-slide .subtitle{font-size:18px;color:rgba(0,150,255,0.4);font-weight:300;margin-bottom:24px;letter-spacing:1px}
+.title-slide .meta{font-size:12px;color:rgba(0,150,255,0.15);font-family:'JetBrains Mono',monospace}
+.title-slide .logo-icon{font-size:48px;margin-bottom:10px;display:block;filter:drop-shadow(0 0 25px rgba(255,68,68,0.3))}
+.arc-mini{display:inline-block;width:36px;height:36px;margin:0 auto 12px;position:relative;border-radius:50%;background:radial-gradient(circle,rgba(0,150,255,0.08),transparent);animation:arc-pulse 2s ease-in-out infinite}
+.arc-mini::before{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:20px;height:20px;border-radius:50%;border:1px solid rgba(0,150,255,0.15)}
+.arc-mini::after{content:'✦';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:rgba(0,150,255,0.3);font-size:10px}
+@keyframes arc-pulse{0%,100%{box-shadow:0 0 5px rgba(0,150,255,0.05)}50%{box-shadow:0 0 20px rgba(0,150,255,0.15)}}
+/* Headers */
+.slide-header{display:flex;align-items:center;gap:14px;margin-bottom:24px}
+.slide-header .icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;border:1px solid}
+.slide-header h2{font-size:30px;font-weight:700;color:#f0f0f0;letter-spacing:-.5px}
+.slide-header .icon.red{border-color:rgba(255,68,68,0.15);background:rgba(255,68,68,0.06);color:#ff4444}
+.slide-header .icon.blue{border-color:rgba(0,150,255,0.15);background:rgba(0,150,255,0.06);color:#0096ff}
+.slide-header .icon.gold{border-color:rgba(255,170,0,0.15);background:rgba(255,170,0,0.06);color:#ffaa00}
+.slide-header .icon.purple{border-color:rgba(139,92,246,0.15);background:rgba(139,92,246,0.06);color:#8b5cf6}
+.slide-header .icon.teal{border-color:rgba(0,206,209,0.15);background:rgba(0,206,209,0.06);color:#00ced1}
+/* Cards */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.card{background:rgba(255,255,255,0.02);border:1px solid rgba(0,150,255,0.05);border-radius:10px;padding:18px;transition:all .3s;position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%;background:linear-gradient(180deg,rgba(0,150,255,0.08),transparent);transition:all .3s}
+.card:hover{background:rgba(255,68,68,0.02);border-color:rgba(255,68,68,0.1);transform:translateY(-2px);box-shadow:0 8px 30px rgba(0,0,0,0.2)}
+.card:hover::before{background:linear-gradient(180deg,#ff4444,rgba(255,68,68,0.1))}
+.card h3{font-size:14px;font-weight:600;color:#f0f0f0;margin-bottom:5px}
+.card p{font-size:12px;line-height:1.6;color:rgba(224,224,224,0.45)}
+.card .card-icon{font-size:22px;margin-bottom:8px;display:block}
+/* Flow */
+.flow{display:flex;align-items:center;justify-content:center;gap:3px;margin:16px 0;flex-wrap:wrap}
+.flow-step{background:rgba(0,150,255,0.02);border:1px solid rgba(0,150,255,0.06);border-radius:8px;padding:10px 16px;text-align:center;font-size:12px;font-weight:500;color:rgba(224,224,224,0.4);min-width:80px;position:relative}
+.flow-step .step-num{display:block;font-size:9px;color:rgba(0,150,255,0.15);font-weight:400;margin-bottom:3px;text-transform:uppercase;letter-spacing:1px}
+.flow-step.active{border-color:rgba(255,68,68,0.2);background:rgba(255,68,68,0.03);color:#ff4444}
+.flow-step.active .step-num{color:rgba(255,68,68,0.3)}
+.flow-step.active::after{content:'';position:absolute;bottom:-2px;left:15%;width:70%;height:2px;background:#ff4444;border-radius:2px;box-shadow:0 0 10px rgba(255,68,68,0.3)}
+.flow-arrow{font-size:16px;color:rgba(0,150,255,0.06)}
+/* Severity */
+.severity-list{list-style:none}
+.severity-item{display:flex;align-items:flex-start;gap:14px;padding:12px 0;border-bottom:1px solid rgba(0,150,255,0.02)}
+.severity-item:last-child{border-bottom:none}
+.severity-tag{font-weight:700;font-size:11px;padding:3px 10px;border-radius:5px;white-space:nowrap;min-width:60px;text-align:center;font-family:'JetBrains Mono',monospace}
+.severity-tag.high{background:rgba(255,68,68,0.08);color:#ff4444;border:1px solid rgba(255,68,68,0.12)}
+.severity-tag.medium{background:rgba(255,170,0,0.08);color:#ffaa00;border:1px solid rgba(255,170,0,0.12)}
+.severity-tag.low{background:rgba(0,150,255,0.08);color:#0096ff;border:1px solid rgba(0,150,255,0.12)}
+.severity-tag.clear{background:rgba(0,206,209,0.08);color:#00ced1;border:1px solid rgba(0,206,209,0.12)}
+.severity-desc{flex:1}.severity-desc h4{font-size:13px;font-weight:600;color:#f0f0f0;margin-bottom:2px}
+.severity-desc p{font-size:11px;color:rgba(224,224,224,0.4);line-height:1.5}
+/* Terminal */
+.terminal{background:rgba(0,0,0,0.4);border:1px solid rgba(0,150,255,0.03);border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.7;padding:14px 18px;overflow:hidden;margin-top:10px;position:relative}
+.terminal::before{content:'';position:absolute;top:0;left:0;width:100%;height:1px;background:linear-gradient(90deg,transparent,rgba(0,150,255,0.08),transparent)}
+.terminal .hl-red{color:#ff4444}.terminal .hl-blue{color:#0096ff}.terminal .hl-gold{color:#ffaa00}
+.terminal .hl-green{color:#00ced1}.terminal .hl-gray{color:rgba(224,224,224,0.15)}.terminal .hl-white{color:#f0f0f0}
+/* Architecture */
+.arch{display:flex;flex-direction:column;align-items:center;gap:6px}
+.arch-layer{display:flex;gap:10px;align-items:center}
+.arch-box{background:rgba(0,150,255,0.02);border:1px solid rgba(0,150,255,0.06);border-radius:8px;padding:8px 14px;text-align:center;font-size:11px}
+.arch-box h4{font-size:12px;font-weight:600;color:#f0f0f0;margin-bottom:1px}.arch-box p{font-size:9px;color:rgba(224,224,224,0.3)}
+.arch-box.user{border-color:rgba(255,68,68,0.12);background:rgba(255,68,68,0.02)}
+.arch-box.router{border-color:rgba(0,150,255,0.12);background:rgba(0,150,255,0.02)}
+.arch-box.triage{border-color:rgba(255,170,0,0.12);background:rgba(255,170,0,0.02)}
+.arch-box.output{border-color:rgba(0,206,209,0.12);background:rgba(0,206,209,0.02)}
+.arch-arrow{color:rgba(0,150,255,0.08);font-size:13px}
+.tagline{font-size:12px;color:rgba(224,224,224,0.2);margin-top:6px;font-style:italic;text-align:center}
+.key-hint{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);font-size:10px;color:rgba(0,150,255,0.06);z-index:50;letter-spacing:.5px;font-family:'JetBrains Mono',monospace}
+.stark-divider{height:1px;background:linear-gradient(90deg,transparent,rgba(255,68,68,0.08),rgba(0,150,255,0.08),transparent);margin:12px 0;position:relative}
+.stark-divider::after{content:'✦';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:rgba(0,150,255,0.08);font-size:8px}
+.v2-badge{display:inline-block;background:rgba(0,150,255,0.05);color:#0096ff;font-size:9px;font-weight:600;padding:2px 8px;border-radius:999px;letter-spacing:1px;text-transform:uppercase;border:1px solid rgba(0,150,255,0.1);vertical-align:middle;margin-left:8px}
+.new-tag{color:#0096ff;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:1px}
+/* ── Iron Man Background Images per Slide ── */
+.slide:nth-child(1){background-image:linear-gradient(rgba(5,5,10,0.65),rgba(5,5,10,0.75)),url(https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/RobertDowneyJr-byPhilipRomano7_(cropped).jpg/500px-RobertDowneyJr-byPhilipRomano7_(cropped).jpg);background-size:cover;background-position:center 25%;background-attachment:fixed}
+.slide:nth-child(2){background-image:linear-gradient(rgba(5,5,10,0.7),rgba(5,5,10,0.8)),url(https://pngimg.com/uploads/ironman/ironman_PNG86.png);background-size:cover;background-position:center 30%;background-attachment:fixed}
+.slide:nth-child(3){background-image:linear-gradient(rgba(5,5,10,0.7),rgba(5,5,10,0.8)),url(https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/RobertDowneyJr-byPhilipRomano7_(cropped).jpg/500px-RobertDowneyJr-byPhilipRomano7_(cropped).jpg);background-size:cover;background-position:center 60%;background-attachment:fixed}
+.slide:nth-child(4){background-image:linear-gradient(rgba(5,5,10,0.7),rgba(5,5,10,0.8)),url(https://pngimg.com/uploads/ironman/ironman_PNG88.png);background-size:cover;background-position:center 40%;background-attachment:fixed}
+.slide:nth-child(5){background-image:linear-gradient(rgba(5,5,10,0.7),rgba(5,5,10,0.8)),url(https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/RobertDowneyJr-byPhilipRomano7_(cropped).jpg/500px-RobertDowneyJr-byPhilipRomano7_(cropped).jpg);background-size:cover;background-position:center 30%;background-attachment:fixed}
+.slide:nth-child(6){background-image:linear-gradient(rgba(5,5,10,0.7),rgba(5,5,10,0.8)),url(https://pngimg.com/uploads/ironman/ironman_PNG89.png);background-size:cover;background-position:center 30%;background-attachment:fixed}
+.slide:nth-child(7){background-image:linear-gradient(rgba(5,5,10,0.7),rgba(5,5,10,0.8)),url(https://pngimg.com/uploads/ironman/ironman_PNG90.png);background-size:cover;background-position:center 30%;background-attachment:fixed}
+@media(max-width:768px){
+.slide{padding:32px 20px}.grid-2,.grid-3{grid-template-columns:1fr}
+.title-slide h1{font-size:36px}.slide-header h2{font-size:20px}
+.flow{gap:2px}.flow-step{padding:6px 10px;font-size:10px;min-width:55px}
+.nav{padding:8px 14px;gap:5px}.title-slide .logo-icon{font-size:35px}
+}
+</style>
+</head>
+<body>
+<div class="stark-watermark"></div>
+<div class="corner-deco tl"></div><div class="corner-deco tr"></div>
+<div class="corner-deco bl"></div><div class="corner-deco br"></div>
+<div class="helmet-watermark"></div>
+<div id="ar-overlay"><canvas id="ar-canvas"></canvas></div>
+
+<div class="slides" id="slides">
+
+  <!-- SLIDE 1 -->
+  <div class="slide title-slide">
+    <div class="slide-react"></div><div class="im-deco tri"></div><div class="im-deco bra"></div>
+    <div class="slide-content">
+      <div class="arc-mini"></div>
+      <span class="logo-icon">🦾</span>
+      <div class="badge">✦ Intelligence Triage Core ✦</div>
+      <h1>J.A.R.V.I.S.</h1>
+      <p class="subtitle">Just Another Rather Very Intelligent System</p>
+      <div class="stark-divider"></div>
+      <p class="meta">✦ Multi-format analysis · Severity-rated intelligence · Automated triage ✦</p>
+      <p class="meta" style="margin-top:6px;color:rgba(0,150,255,0.08)">OpenClaw · Group14</p>
+    </div>
+  </div>
+
+  <!-- SLIDE 2 -->
+  <div class="slide">
+    <div class="slide-react"></div><div class="im-deco tri"></div><div class="im-deco bra"></div>
+    <div class="slide-content">
+      <div class="slide-header"><div class="icon blue">✦</div><h2>What is JARVIS?<span class="v2-badge">v2</span></h2></div>
+      <p style="font-size:14px;color:rgba(224,224,224,0.4);line-height:1.7;margin-bottom:24px"><strong style="color:#ff4444">JARVIS</strong> (Just Another Rather Very Intelligent System) v2 is the second-generation intelligence triage system. It ingests any uploaded content and produces structured, severity-rated intelligence reports with nanotech precision.</p>
+      <div class="grid-3">
+        <div class="card"><span class="card-icon">📂</span><h3>Universal Input</h3><p>Accepts text, logs, CSV, JSON, images, PDFs, source code. <span style="color:rgba(0,150,255,0.3)">Batch processing</span>.</p></div>
+        <div class="card"><span class="card-icon">🔬</span><h3>Advanced Analysis Engine</h3><p>Extracts threats, anomalies, errors, patterns. <span style="color:rgba(0,150,255,0.3)">Cross-file correlation</span>.</p></div>
+        <div class="card"><span class="card-icon">🚨</span><h3>Dynamic Triage System</h3><p>Rates every finding HIGH/MEDIUM/LOW/CLEAR with <span style="color:rgba(0,150,255,0.3)">confidence+escalation</span>.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 3 -->
+  <div class="slide">
+    <div class="slide-react"></div><div class="im-deco tri"></div><div class="im-deco bra"></div>
+    <div class="slide-content">
+      <div class="slide-header"><div class="icon gold">⚡</div><h2>Enhanced Capabilities<span class="v2-badge">v2</span></h2></div>
+      <div class="grid-2">
+        <div class="card"><span class="card-icon">📄</span><h3>Text &amp; Doc Analysis <span class="new-tag">+v2</span></h3><p>Logs, reports, emails. <span style="color:rgba(0,150,255,0.25)">New:</span> multi-doc cross-ref, timeline stitching.</p></div>
+        <div class="card"><span class="card-icon">🖼️</span><h3>Visual Intelligence <span class="new-tag">+v2</span></h3><p>Image analysis. <span style="color:rgba(0,150,255,0.25)">New:</span> enhanced OCR, scene analysis.</p></div>
+        <div class="card"><span class="card-icon">📊</span><h3>Data Parsing <span class="new-tag">+v2</span></h3><p>CSVs, structured data. <span style="color:rgba(0,150,255,0.25)">New:</span> regression, anomaly clustering.</p></div>
+        <div class="card"><span class="card-icon">🔐</span><h3>Code Security <span class="new-tag">+v2</span></h3><p>Vulnerabilities, secrets. <span style="color:rgba(0,150,255,0.25)">New:</span> dependency chain analysis.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 4 -->
+  <div class="slide">
+    <div class="slide-react"></div><div class="im-deco tri"></div><div class="im-deco bra"></div>
+    <div class="slide-content">
+      <div class="slide-header"><div class="icon purple">🔄</div><h2>Processing Loop</h2></div>
+      <p style="font-size:12px;color:rgba(224,224,224,0.25);margin-bottom:12px">Execution loop — from ingestion to escalation</p>
+      <div class="flow">
+        <div class="flow-step active"><span class="step-num">Step 1</span>📥 Ingest</div><span class="flow-arrow">→</span>
+        <div class="flow-step"><span class="step-num">Step 2</span>🔎 Analyze</div><span class="flow-arrow">→</span>
+        <div class="flow-step"><span class="step-num">Step 3</span>📊 Rate</div><span class="flow-arrow">→</span>
+        <div class="flow-step"><span class="step-num">Step 4</span>📋 Report</div><span class="flow-arrow">→</span>
+        <div class="flow-step"><span class="step-num">Step 5</span>💾 Archive</div><span class="flow-arrow">→</span>
+        <div class="flow-step"><span class="step-num">Step 6</span>📢 Escalate</div>
+      </div>
+      <div class="grid-3" style="margin-top:16px">
+        <div class="card"><h3>📥 1. Ingestion</h3><p>Files, images, data via <code>jarvis</code>/<code>crisis</code>/<code>triage</code>. <span class="new-tag">v2</span> batch.</p></div>
+        <div class="card"><h3>🔎 2. Analysis</h3><p>Security, anomalies, visual. <span class="new-tag">v2</span> cross-file correlation.</p></div>
+        <div class="card"><h3>📊 3. Rating</h3><p>HIGH 🚨, MEDIUM ⚠️, LOW ℹ️, CLEAR ✅ with confidence.</p></div>
+        <div class="card"><h3>📋 4. Report</h3><p>Triage report with summary, concerns, verdict.</p></div>
+        <div class="card"><h3>💾 5. Archive</h3><p>Logged to <code>history/YYYY-MM-DD.md</code>. <span class="new-tag">v2</span> searchable.</p></div>
+        <div class="card"><h3>📢 6. Escalate</h3><p><span class="new-tag">v2</span> Auto-escalation for HIGH findings.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 5 -->
+  <div class="slide">
+    <div class="slide-react"></div><div class="im-deco tri"></div><div class="im-deco bra"></div>
+    <div class="slide-content">
+      <div class="slide-header"><div class="icon red">🚦</div><h2>Severity Rating System</h2></div>
+      <ul class="severity-list">
+        <li class="severity-item"><span class="severity-tag high">🚨 HIGH</span><div class="severity-desc"><h4>Immediate Action Required</h4><p>Active threat, breach, critical failure. <span class="new-tag">v2</span> auto-notify.</p></div></li>
+        <li class="severity-item"><span class="severity-tag medium">⚠️ MEDIUM</span><div class="severity-desc"><h4>Needs Attention</h4><p>Potential risk, developing situation. <span class="new-tag">v2</span> auto-ticket.</p></div></li>
+        <li class="severity-item"><span class="severity-tag low">ℹ️ LOW</span><div class="severity-desc"><h4>Monitor Only</h4><p>Informational, minor concern. <span class="new-tag">v2</span> trend analysis.</p></div></li>
+        <li class="severity-item"><span class="severity-tag clear">✅ CLEAR</span><div class="severity-desc"><h4>All Clear</h4><p>No concerns. Within expected parameters.</p></div></li>
+      </ul>
+      <p class="tagline">Every report <strong>must</strong> flag what needs attention — no ambiguity.</p>
+    </div>
+  </div>
+
+  <!-- SLIDE 6 -->
+  <div class="slide">
+    <div class="slide-react"></div><div class="im-deco tri"></div><div class="im-deco bra"></div>
+    <div class="slide-content">
+      <div class="slide-header"><div class="icon red">🎬</div><h2>Live Demo — Terminal</h2></div>
+      <p style="font-size:12px;color:rgba(224,224,224,0.25);margin-bottom:10px">Triggered via <code style="background:rgba(0,150,255,0.03);padding:2px 8px;border-radius:4px">jarvis [incident description]</code> with file attachments.</p>
+      <div class="grid-2">
+        <div class="card" style="overflow:hidden">
+          <h3 style="margin-bottom:10px">📱 User Input</h3>
+          <div class="terminal" style="margin-top:0">
+            <span class="hl-gray"># User types:</span><br>
+            <span class="hl-red">jarvis</span> <span class="hl-white">Check these server logs</span><br>
+            <span class="hl-white">for anything concerning.</span><br><br>
+            <span class="hl-gray"># Attaches: server_logs.csv</span><br>
+            <span class="hl-gray">14:02:03, AUTH_FAIL, admin, 203.0.113.50</span>
+          </div>
+        </div>
+        <div class="card" style="overflow:hidden">
+          <h3 style="margin-bottom:10px">📋 JARVIS Output</h3>
+          <div class="terminal" style="margin-top:0">
+            <span class="hl-red">=== TRIAGE REPORT ===</span><br>
+            <span class="hl-gray">FILE: server_logs.csv</span><br><br>
+            <span class="hl-red">🚨 HIGH</span><br>
+            <span class="hl-white">• Root login from external IP 203.0.113.50</span><br>
+            <span class="hl-white">  → Direct root access via SSH (96%)</span><br><br>
+            <span class="hl-gold">⚠️ MEDIUM</span><br>
+            <span class="hl-white">• Auth failures from same IP (3 attempts)</span><br>
+            <span class="hl-white">  → Possible brute-force precursor (78%)</span>
+          </div>
+        </div>
+      </div>
+      <div style="text-align:center;margin-top:12px">
+        <div style="display:inline-block;background:rgba(255,68,68,0.05);border:1px solid rgba(255,68,68,0.1);border-radius:8px;padding:8px 16px">
+          <span style="color:#ff4444;font-size:12px">▶️ See demo below for full walkthrough</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 7 -->
+  <div class="slide">
+    <div class="slide-react"></div><div class="im-deco tri"></div><div class="im-deco bra"></div>
+    <div class="slide-content">
+      <div class="slide-header"><div class="icon teal">🏗️</div><h2>Architecture &amp; Integration</h2></div>
+      <div class="arch">
+        <div class="arch-layer">
+          <div class="arch-box user"><h4>👤 User</h4><p>Discord / WebChat</p></div>
+          <span class="arch-arrow">↓</span>
+          <div class="arch-box user"><h4>📨 Command</h4><p>jarvis / crisis / triage</p></div>
+        </div>
+        <div class="arch-arrow" style="font-size:18px">↓</div>
+        <div class="arch-layer">
+          <div class="arch-box router"><h4>🔄 Navi (Router)</h4><p>Detects prefix → spawns sub-agent</p></div>
+        </div>
+        <div class="arch-arrow" style="font-size:18px">↓</div>
+        <div class="arch-layer">
+          <div class="arch-box triage"><h4>🤖 JARVIS Sub-agent</h4><p>Sentinel Triage Core</p></div>
+        </div>
+        <div class="arch-arrow" style="font-size:18px">↓</div>
+        <div class="arch-layer">
+          <div class="arch-box output"><h4>📋 Triage Report</h4><p>Structured output → User</p></div>
+          <div class="arch-box output"><h4>💾 History Log</h4><p>history/YYYY-MM-DD.md</p></div>
+        </div>
+      </div>
+      <div style="margin-top:14px;text-align:center">
+        <div style="display:inline-flex;gap:8px;flex-wrap:wrap;justify-content:center">
+          <span style="background:rgba(0,150,255,0.02);border:1px solid rgba(0,150,255,0.04);border-radius:6px;padding:5px 12px;font-size:10px;color:rgba(224,224,224,0.3)">📎 File attachments via sessions_spawn</span>
+          <span style="background:rgba(0,150,255,0.02);border:1px solid rgba(0,150,255,0.04);border-radius:6px;padding:5px 12px;font-size:10px;color:rgba(224,224,224,0.3)">🖼️ Image analysis via image tool</span>
+          <span style="background:rgba(0,150,255,0.02);border:1px solid rgba(0,150,255,0.04);border-radius:6px;padding:5px 12px;font-size:10px;color:rgba(224,224,224,0.3)">🔙 Returns to Navi mode after triage</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 8: Thank You -->
+  <div class="slide title-slide">
+    <div class="slide-react"></div><div class="im-deco tri"></div><div class="im-deco bra"></div>
+    <div class="slide-content">
+      <div class="arc-mini"></div>
+      <span class="logo-icon">🙏</span>
+      <div class="badge">✦ Thank You ✦</div>
+      <h1>Stay Safe. Stay Sharp.</h1>
+      <p class="subtitle" style="margin-bottom:30px">J.A.R.V.I.S. is always watching. Always ready.</p>
+      <div class="stark-divider"></div>
+      <p class="meta">✦ Powered by OpenClaw · Built by Group14 ✦</p>
+      <p class="meta" style="margin-top:8px;color:rgba(0,150,255,0.08)">Precision. Speed. Reliability.</p>
+    </div>
+  </div>
+
+
+</div>
+
+<div class="nav">
+  <button class="nav-arrow" id="prevBtn" onclick="prevSlide()">‹</button>
+  <div id="navDots"></div>
+  <span class="slide-number" id="slideNum">1 / 8</span>
+  <button class="nav-arrow" id="nextBtn" onclick="nextSlide()">›</button>
+</div>
+
+<div class="key-hint">← → arrow keys · click dots to navigate</div>
+
+<script>
+let current = 0;
+const slidesEl = document.querySelector('.slides');
+const total = document.querySelectorAll('.slide').length;
+const dotsContainer = document.getElementById('navDots');
+for (let i = 0; i < total; i++) {
+  const dot = document.createElement('button');
+  dot.className = 'nav-dot' + (i === 0 ? ' active' : '');
+  dot.onclick = () => goTo(i);
+  dotsContainer.appendChild(dot);
+}
+
+// ── Arc Reactor Animation ──
+const overlay = document.getElementById('ar-overlay');
+const canvas = document.getElementById('ar-canvas');
+const ctx = canvas.getContext('2d');
+let animating = false;
+let animId = null;
+const ANIM_DURATION = 1200;
+
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+function drawArcReactor(t) {
+  const w = canvas.width, h = canvas.height;
+  const cx = w / 2, cy = h / 2;
+
+  ctx.clearRect(0, 0, w, h);
+
+  if (t > 5.0) {
+    overlay.classList.remove('active');
+    animating = false;
+    cancelAnimationFrame(animId);
+    return;
+  }
+
+  const time = Date.now() / 1000;
+  let opacity, progress;
+
+  if (t < 3.2) { opacity = 1; progress = t / 3.2; }
+  else { opacity = Math.max(0, 1 - (t - 3.2) * 0.6); progress = 1; }
+
+  overlay.style.opacity = opacity;
+  if (opacity <= 0) return;
+
+  const p = Math.min(1, progress);
+  const smooth = 1 - Math.pow(1 - p, 3);
+
+  ctx.save();
+
+  // ── BACKGROUND DARK FLASH ──
+  const flashA = (1 - p) * 0.06;
+  ctx.fillStyle = 'rgba(255, 68, 68, ' + flashA + ')';
+  ctx.fillRect(0, 0, w, h);
+
+  // ── ARMOUR TECTONIC PANELS ──
+  // 8 large triangular/trapezoidal panels that slide from edges and interlock
+  
+  const panelDefs = [
+    // Top-left triangle
+    { edge: 'tl', x1: 0, y1: 0, x2: w*0.5, y2: 0, x3: 0, y3: h*0.5,
+      fromX: -w*0.6, fromY: -h*0.6, color1: '200,50,50', color2: '255,80,60' },
+    // Top-center trapezoid
+    { edge: 'tc', x1: w*0.1, y1: 0, x2: w*0.9, y2: 0, x3: w*0.7, y3: h*0.35, x4: w*0.3, y4: h*0.35,
+      fromX: w*0.5, fromY: -h*0.6, color1: '180,40,40', color2: '230,100,50' },
+    // Top-right triangle
+    { edge: 'tr', x1: w*0.5, y1: 0, x2: w, y2: 0, x3: w, y3: h*0.5,
+      fromX: w + w*0.6, fromY: -h*0.6, color1: '200,50,50', color2: '255,80,60' },
+    // Left trapezoid
+    { edge: 'ml', x1: 0, y1: h*0.2, x2: w*0.35, y2: h*0.25, x3: w*0.35, y3: h*0.75, x4: 0, y4: h*0.8,
+      fromX: -w*0.6, fromY: h*0.5, color1: '170,35,35', color2: '220,90,45' },
+    // Right trapezoid
+    { edge: 'mr', x1: w, y1: h*0.2, x2: w*0.65, y2: h*0.25, x3: w*0.65, y3: h*0.75, x4: w, y4: h*0.8,
+      fromX: w + w*0.6, fromY: h*0.5, color1: '170,35,35', color2: '220,90,45' },
+    // Bottom-left triangle
+    { edge: 'bl', x1: 0, y1: h*0.5, x2: w*0.5, y2: h, x3: 0, y3: h,
+      fromX: -w*0.6, fromY: h + h*0.6, color1: '200,50,50', color2: '255,80,60' },
+    // Bottom-center trapezoid
+    { edge: 'bc', x1: w*0.3, y1: h*0.65, x2: w*0.7, y2: h*0.65, x3: w*0.9, y3: h, x4: w*0.1, y4: h,
+      fromX: w*0.5, fromY: h + h*0.6, color1: '180,40,40', color2: '230,100,50' },
+    // Bottom-right triangle
+    { edge: 'br', x1: w*0.5, y1: h, x2: w, y2: h, x3: w, y3: h*0.5,
+      fromX: w + w*0.6, fromY: h + h*0.6, color1: '200,50,50', color2: '255,80,60' },
+    // Center cover plate
+    { edge: 'ct', x1: w*0.2, y1: h*0.2, x2: w*0.8, y2: h*0.2, x3: w*0.8, y3: h*0.8, x4: w*0.2, y4: h*0.8,
+      fromX: w*0.5, fromY: h*0.5, color1: '210,55,55', color2: '250,100,55' }
+  ];
+
+  // Center arc reactor cutout
+  const centerCutR = Math.min(w, h) * 0.08;
+  const reactorR2 = Math.min(w, h) * 0.13;
+
+  for (let pi = 0; pi < panelDefs.length; pi++) {
+    const pd = panelDefs[pi];
+    const stagger = pi * 0.02;
+    const localP = Math.max(0, Math.min(1, (smooth - stagger) / (1 - stagger)));
+    if (localP <= 0) continue;
+
+    const ep = 1 - Math.pow(1 - localP, 2);
+    const ep2 = localP;
+
+    // Determine panel shape vertices (original vs moved)
+    let verts;
+    if (pd.x4 !== undefined) {
+      // Quadrilateral
+      verts = [
+        { x: pd.x1 + (pd.fromX - pd.x1) * (1 - ep), y: pd.y1 + (pd.fromY - pd.y1) * (1 - ep) },
+        { x: pd.x2 + (pd.fromX - pd.x2) * (1 - ep), y: pd.y2 + (pd.fromY - pd.y2) * (1 - ep) },
+        { x: pd.x3 + (pd.fromX - pd.x3) * (1 - ep), y: pd.y3 + (pd.fromY - pd.y3) * (1 - ep) },
+        { x: pd.x4 + (pd.fromX - pd.x4) * (1 - ep), y: pd.y4 + (pd.fromY - pd.y4) * (1 - ep) }
+      ];
+    } else {
+      // Triangle
+      verts = [
+        { x: pd.x1 + (pd.fromX - pd.x1) * (1 - ep), y: pd.y1 + (pd.fromY - pd.y1) * (1 - ep) },
+        { x: pd.x2 + (pd.fromX - pd.x2) * (1 - ep), y: pd.y2 + (pd.fromY - pd.y2) * (1 - ep) },
+        { x: pd.x3 + (pd.fromX - pd.x3) * (1 - ep), y: pd.y3 + (pd.fromY - pd.y3) * (1 - ep) }
+      ];
+    }
+
+    // Draw panel
+    ctx.beginPath();
+    ctx.moveTo(verts[0].x, verts[0].y);
+    for (let vi = 1; vi < verts.length; vi++) {
+      ctx.lineTo(verts[vi].x, verts[vi].y);
+    }
+    ctx.closePath();
+
+    // Metallic gradient
+    const grad = ctx.createLinearGradient(
+      verts[0].x, verts[0].y,
+      verts[2].x, verts[2].y
+    );
+    const panelAlpha = 1.0;
+    grad.addColorStop(0, 'rgba(' + pd.color2 + ', ' + (panelAlpha * opacity) + ')');
+    grad.addColorStop(0.5, 'rgba(' + pd.color1 + ', ' + (panelAlpha * 0.9 * opacity) + ')');
+    grad.addColorStop(1, 'rgba(' + pd.color2 + ', ' + (panelAlpha * 0.7 * opacity) + ')');
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Panel border
+    ctx.strokeStyle = 'rgba(255, 200, 100, ' + (0.08 * opacity * ep2) + ')';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Panel edge glow (inner side where panels meet)
+    ctx.strokeStyle = 'rgba(0, 150, 255, ' + (0.03 * opacity * ep2) + ')';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 6]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Tech detail lines on larger panels
+    if ((pd.edge === 'tc' || pd.edge === 'bc' || pd.edge === 'ml' || pd.edge === 'mr') && ep2 > 0.3) {
+      const lineP = (ep2 - 0.3) / 0.7;
+      const centerX = (verts.reduce((a, v) => a + v.x, 0)) / verts.length;
+      const centerY = (verts.reduce((a, v) => a + v.y, 0)) / verts.length;
+      
+      for (let li = 0; li < 3; li++) {
+        const la = (li / 3) * Math.PI * 2 + time * 0.2;
+        const len = Math.min(w, h) * 0.04;
+        ctx.strokeStyle = 'rgba(0, 150, 255, ' + (0.02 * opacity * lineP) + ')';
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.lineTo(centerX + Math.cos(la) * len, centerY + Math.sin(la) * len);
+        ctx.stroke();
+      }
+    }
+  }
+
+  // ── ARC REACTOR (Center) ──
+  if (p > 0.2) {
+    const rP = Math.max(0, (p - 0.2) / 0.8);
+    const rEased = 1 - Math.pow(1 - rP, 2);
+    const baseR = reactorR2 * (0.1 + rEased * 0.9);
+    const rotSpeed = time * 0.5;
+
+    // Outer glow
+    const og = ctx.createRadialGradient(cx, cy, 0, cx, cy, baseR * 2.5);
+    og.addColorStop(0, 'rgba(0, 150, 255, ' + (0.25 * opacity * rEased) + ')');
+    og.addColorStop(0.3, 'rgba(0, 150, 255, ' + (0.1 * opacity * rEased) + ')');
+    og.addColorStop(0.6, 'rgba(255, 68, 68, ' + (0.04 * opacity * rEased) + ')');
+    og.addColorStop(1, 'transparent');
+    ctx.fillStyle = og;
+    ctx.beginPath();
+    ctx.arc(cx, cy, baseR * 2.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Outer segmented ring
+    for (let i = 0; i < 12; i++) {
+      const angle = (i / 12) * Math.PI * 2 + rotSpeed;
+      const segLen = Math.PI * 2 / 12 * 0.6;
+      ctx.strokeStyle = 'rgba(255, 68, 68, ' + (0.3 * opacity * rEased) + ')';
+      ctx.lineWidth = 2 + rEased;
+      ctx.shadowColor = 'rgba(0, 150, 255, ' + (0.1 * opacity * rEased) + ')';
+      ctx.shadowBlur = 5;
+      ctx.beginPath();
+      ctx.arc(cx, cy, baseR, angle, angle + segLen);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+
+    // Middle ring
+    ctx.strokeStyle = 'rgba(0, 150, 255, ' + (0.2 * opacity * rEased) + ')';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 8]);
+    ctx.lineDashOffset = -time * 40;
+    ctx.beginPath();
+    ctx.arc(cx, cy, baseR * 0.7, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Inner ring
+    ctx.strokeStyle = 'rgba(201, 168, 76, ' + (0.15 * opacity * rEased) + ')';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(cx, cy, baseR * 0.45, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Core glow
+    const coreR = baseR * 0.12;
+    const corG = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreR * 4);
+    corG.addColorStop(0, 'rgba(255, 255, 255, ' + (0.6 * opacity * rEased) + ')');
+    corG.addColorStop(0.1, 'rgba(0, 150, 255, ' + (0.8 * opacity * rEased) + ')');
+    corG.addColorStop(0.3, 'rgba(0, 150, 255, ' + (0.3 * opacity * rEased) + ')');
+    corG.addColorStop(0.6, 'rgba(255, 68, 68, ' + (0.1 * opacity * rEased) + ')');
+    corG.addColorStop(1, 'transparent');
+    ctx.fillStyle = corG;
+    ctx.beginPath();
+    ctx.arc(cx, cy, coreR * 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Core dot
+    ctx.fillStyle = 'rgba(255, 255, 255, ' + (0.7 * opacity * rEased) + ')';
+    ctx.shadowColor = 'rgba(0, 150, 255, ' + (0.6 * opacity * rEased) + ')';
+    ctx.shadowBlur = 20;
+    ctx.beginPath();
+    ctx.arc(cx, cy, coreR, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Spokes
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2 + rotSpeed;
+      ctx.strokeStyle = 'rgba(0, 150, 255, ' + (0.05 * opacity * rEased) + ')';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(angle) * coreR * 2, cy + Math.sin(angle) * coreR * 2);
+      ctx.lineTo(cx + Math.cos(angle) * baseR * 0.4, cy + Math.sin(angle) * baseR * 0.4);
+      ctx.stroke();
+    }
+  }
+
+  // ── EDGE GLOW BETWEEN PANELS ──
+  // Draw glowing seams where panels meet
+  if (p > 0.3) {
+    const seamP = Math.max(0, (p - 0.3) / 0.4);
+    const seamA = 0.02 * opacity * seamP;
+    
+    // Horizontal seam
+    ctx.strokeStyle = 'rgba(0, 150, 255, ' + seamA + ')';
+    ctx.lineWidth = 1.5;
+    ctx.shadowColor = 'rgba(0, 150, 255, ' + (seamA * 2) + ')';
+    ctx.shadowBlur = 4;
+    ctx.beginPath();
+    ctx.moveTo(w * 0.1, h * 0.35);
+    ctx.lineTo(w * 0.3, h * 0.35);
+    ctx.moveTo(w * 0.7, h * 0.35);
+    ctx.lineTo(w * 0.9, h * 0.35);
+    ctx.moveTo(w * 0.3, h * 0.65);
+    ctx.lineTo(w * 0.7, h * 0.65);
+    ctx.stroke();
+    
+    // Vertical seams
+    ctx.beginPath();
+    ctx.moveTo(w * 0.35, h * 0.25);
+    ctx.lineTo(w * 0.35, h * 0.75);
+    ctx.moveTo(w * 0.65, h * 0.25);
+    ctx.lineTo(w * 0.65, h * 0.75);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+
+  // ── HUD OVERLAY ──
+  if (p > 0.6) {
+    const hudP = Math.max(0, (p - 0.6) / 0.4);
+    const hs = 1 - Math.pow(1 - hudP, 2);
+
+    // Targeting ring
+    ctx.strokeStyle = 'rgba(0, 150, 255, ' + (0.06 * opacity * hs) + ')';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(cx, cy, Math.min(w, h) * 0.25, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Crosshair
+    ctx.strokeStyle = 'rgba(255, 68, 68, ' + (0.04 * opacity * hs) + ')';
+    ctx.lineWidth = 1;
+    const ch = Math.min(w, h) * 0.2, chl = Math.min(w, h) * 0.05;
+    ctx.beginPath();
+    ctx.moveTo(cx - ch - chl, cy); ctx.lineTo(cx - ch, cy);
+    ctx.moveTo(cx + ch, cy); ctx.lineTo(cx + ch + chl, cy);
+    ctx.moveTo(cx, cy - ch - chl); ctx.lineTo(cx, cy - ch);
+    ctx.moveTo(cx, cy + ch); ctx.lineTo(cx, cy + ch + chl);
+    ctx.stroke();
+
+    // Scan line
+    const scan = ((time * 80) % (h * 1.3));
+    ctx.strokeStyle = 'rgba(0, 150, 255, ' + (0.015 * opacity * hs) + ')';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, scan); ctx.lineTo(w, scan);
+    ctx.stroke();
+
+    // Corner brackets
+    const bs = Math.min(w, h) * 0.12, bo = 25;
+    ctx.strokeStyle = 'rgba(0, 150, 255, ' + (0.04 * opacity * hs) + ')';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(bo, bo); ctx.lineTo(bo + bs, bo); ctx.moveTo(bo, bo); ctx.lineTo(bo, bo + bs); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(w - bo - bs, bo); ctx.lineTo(w - bo, bo); ctx.moveTo(w - bo, bo); ctx.lineTo(w - bo, bo + bs); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(bo, h - bo - bs); ctx.lineTo(bo, h - bo); ctx.moveTo(bo, h - bo); ctx.lineTo(bo + bs, h - bo); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(w - bo - bs, h - bo); ctx.lineTo(w - bo, h - bo); ctx.moveTo(w - bo, h - bo); ctx.lineTo(w - bo, h - bo - bs); ctx.stroke();
+
+    // HUD text
+    ctx.font = '9px "JetBrains Mono", monospace';
+    ctx.fillStyle = 'rgba(0, 150, 255, ' + (0.03 * opacity * hs) + ')';
+    ctx.fillText('SYS: ONLINE', 30, 28);
+    ctx.fillText('ARC: STABLE', 30, 40);
+    ctx.fillText('ARMOR: READY', w - 130, 28);
+    ctx.fillText('WEAPONS: STANDBY', w - 130, 40);
+
+    // Power meter
+    const pmx = 15, pmy = 55, pmw = 3, pmh = h * 0.2;
+    ctx.fillStyle = 'rgba(255, 68, 68, ' + (0.02 * opacity * hs) + ')';
+    ctx.fillRect(pmx, pmy, pmw, pmh);
+    ctx.fillStyle = 'rgba(0, 150, 255, ' + (0.03 * opacity * hs) + ')';
+    const fillLevel = (time * 25) % 100;
+    ctx.fillRect(pmx, pmy + pmh * (1 - fillLevel/100), pmw, pmh * fillLevel/100);
+  }
+
+  ctx.restore();
+}
+
+function animateArc() {
+  if (!animating) return;
+  const elapsed = Date.now() - animStartTime;
+  const t = elapsed / ANIM_DURATION * 5;
+  drawArcReactor(t);
+  if (t < 5.0) {
+    animId = requestAnimationFrame(animateArc);
+  } else {
+    animating = false;
+    overlay.classList.remove('active');
+    overlay.style.opacity = 0;
+  }
+}
+
+let animStartTime = 0;
+
+function triggerArcTransition() {
+  if (animating) { cancelAnimationFrame(animId); animating = false; }
+  animating = true;
+  animStartTime = Date.now();
+  overlay.classList.add('active');
+  animId = requestAnimationFrame(animateArc);
+}
+
+function goTo(n) {
+  if (current === n) return;
+  current = Math.max(0, Math.min(n, total - 1));
+  slidesEl.style.transform = 'translateX(-' + (current * 100) + 'vw)';
+  document.querySelectorAll('.nav-dot').forEach((d, i) => d.classList.toggle('active', i === current));
+  document.getElementById('slideNum').textContent = (current + 1) + ' / ' + total;
+  document.getElementById('prevBtn').disabled = current === 0;
+  document.getElementById('nextBtn').disabled = current === total - 1;
+  triggerArcTransition();
+}
+
+function nextSlide() { if (current < total - 1) goTo(current + 1); }
+function prevSlide() { if (current > 0) goTo(current - 1); }
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight') nextSlide();
+  if (e.key === 'ArrowLeft') prevSlide();
+});
+</script>
+
+
+<!-- OpenClaw Chatbot Widget -->
+<style>
+.oc-chat-btn{
+  position:fixed;bottom:90px;right:20px;z-index:999;
+  width:56px;height:56px;border-radius:50%;
+  background:linear-gradient(135deg,#ff4444,#cc0000);
+  border:none;cursor:pointer;box-shadow:0 4px 20px rgba(255,68,68,0.3);
+  display:flex;align-items:center;justify-content:center;
+  transition:all .3s;font-size:26px;
+}
+.oc-chat-btn:hover{transform:scale(1.1);box-shadow:0 6px 30px rgba(255,68,68,0.4)}
+.oc-chat-btn.active{transform:rotate(45deg)}
+.oc-chat-box{
+  position:fixed;bottom:155px;right:20px;z-index:998;
+  width:340px;height:420px;border-radius:14px;
+  background:rgba(10,10,15,0.95);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border:1px solid rgba(255,68,68,0.15);box-shadow:0 10px 60px rgba(0,0,0,0.4);
+  display:none;flex-direction:column;overflow:hidden;
+  font-family:'Inter',-apple-system,sans-serif;
+}
+.oc-chat-box.open{display:flex}
+.oc-chat-head{
+  padding:14px 18px;background:rgba(255,68,68,0.05);
+  border-bottom:1px solid rgba(255,68,68,0.08);
+  display:flex;align-items:center;gap:10px;
+}
+.oc-chat-head span{color:#ff4444;font-weight:700;font-size:13px;letter-spacing:.5px}
+.oc-chat-head small{color:rgba(255,68,68,0.3);font-size:10px;margin-left:auto}
+.oc-chat-msgs{padding:14px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:8px}
+.oc-chat-msgs::-webkit-scrollbar{width:3px}
+.oc-chat-msgs::-webkit-scrollbar-track{background:transparent}
+.oc-chat-msgs::-webkit-scrollbar-thumb{background:rgba(255,68,68,0.2);border-radius:3px}
+.oc-msg{max-width:85%;padding:8px 13px;border-radius:12px;font-size:12px;line-height:1.5;animation:oc-fade .3s ease}
+@keyframes oc-fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.oc-msg.bot{background:rgba(0,150,255,0.04);border:1px solid rgba(0,150,255,0.06);color:#c0d0e0;align-self:flex-start;border-bottom-left-radius:3px}
+.oc-msg.user{background:rgba(255,68,68,0.06);border:1px solid rgba(255,68,68,0.08);color:#e0e0e0;align-self:flex-end;border-bottom-right-radius:3px}
+.oc-chat-input{display:flex;padding:8px 12px;border-top:1px solid rgba(255,68,68,0.08);gap:6px}
+.oc-chat-input input{flex:1;background:rgba(255,255,255,0.03);border:1px solid rgba(255,68,68,0.1);border-radius:8px;padding:8px 12px;color:#e0e0e0;font-size:12px;outline:none;font-family:'Inter',sans-serif}
+.oc-chat-input input::placeholder{color:rgba(255,255,255,0.1)}
+.oc-chat-input input:focus{border-color:rgba(255,68,68,0.2)}
+.oc-chat-input button{background:rgba(255,68,68,0.1);border:1px solid rgba(255,68,68,0.15);border-radius:8px;color:#ff4444;padding:8px 14px;cursor:pointer;font-size:13px;transition:all .2s}
+.oc-chat-input button:hover{background:rgba(255,68,68,0.2)}
+.oc-chat-foot{padding:6px 14px;border-top:1px solid rgba(255,68,68,0.04);text-align:center}
+.oc-chat-foot small{color:rgba(255,255,255,0.06);font-size:9px;letter-spacing:.5px}
+
+
+/* ── Enhanced Animations ── */
+
+/* Particle canvas background */
+#particle-canvas{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  z-index:0;pointer-events:none;
+}
+
+/* Subtle hex grid rotation */
+body::before{
+  animation:hex-drift 120s linear infinite;
+}
+@keyframes hex-drift{
+  0%{transform:translateX(0) translateY(0)}
+  25%{transform:translateX(20px) translateY(-15px)}
+  50%{transform:translateX(-10px) translateY(20px)}
+  75%{transform:translateX(15px) translateY(-10px)}
+  100%{transform:translateX(0) translateY(0)}
+}
+
+/* Per-slide arc reactor rotation */
+.slide-react{
+  animation:reactor-spin 30s linear infinite;
+}
+@keyframes reactor-spin{
+  0%{transform:translate(-50%,-50%) rotate(0deg)}
+  100%{transform:translate(-50%,-50%) rotate(360deg)}
+}
+.slide-react::after{
+  animation:reactor-pulse 3s ease-in-out infinite;
+}
+@keyframes reactor-pulse{
+  0%,100%{opacity:0.3;transform:translate(-50%,-50%) scale(1)}
+  50%{opacity:1;transform:translate(-50%,-50%) scale(1.2)}
+}
+
+/* Scanning line on title slide */
+.title-slide::after{
+  content:'';position:absolute;top:0;left:0;width:100%;height:2px;
+  background:linear-gradient(90deg,transparent,rgba(0,150,255,0.08),transparent);
+  animation:scan-line 4s ease-in-out infinite;
+  z-index:0;pointer-events:none;
+}
+@keyframes scan-line{
+  0%{top:0;opacity:0}
+  10%{opacity:1}
+  50%{top:100%;opacity:1}
+  60%{opacity:0}
+  100%{top:100%;opacity:0}
+}
+
+/* Entrance animations disabled for canvas-only transitions */
+.flow-step{
+  opacity:0;transform:translateX(-10px);
+  animation:flow-in 0.4s ease forwards;
+}
+.flow-step:nth-child(1){animation-delay:0.1s}
+.flow-step:nth-child(2){animation-delay:0.2s}
+.flow-step:nth-child(3){animation-delay:0.3s}
+.flow-step:nth-child(4){animation-delay:0.4s}
+.flow-step:nth-child(5){animation-delay:0.5s}
+.flow-step:nth-child(6){animation-delay:0.6s}
+.flow-arrow{
+  opacity:0;
+  animation:arrow-in 0.3s ease forwards;
+}
+.flow-arrow:nth-child(2){animation-delay:0.15s}
+.flow-arrow:nth-child(4){animation-delay:0.35s}
+.flow-arrow:nth-child(6){animation-delay:0.55s}
+.flow-arrow:nth-child(8){animation-delay:0.75s}
+.flow-arrow:nth-child(10){animation-delay:0.95s}
+
+@keyframes flow-in{
+  0%{opacity:0;transform:translateX(-10px)}
+  100%{opacity:1;transform:transform:translateX(0)}
+}
+@keyframes arrow-in{
+  0%{opacity:0}
+  100%{opacity:1}
+}
+
+
+.arch-box{
+  opacity:0;transform:translateY(10px);
+  animation:arch-in 0.4s ease forwards;
+}
+.arch-box:nth-child(1){animation-delay:0.1s}
+.arch-box:nth-child(3){animation-delay:0.2s}
+.arch-box:nth-child(5){animation-delay:0.3s}
+.arch-box:nth-child(7){animation-delay:0.4s}
+
+@keyframes arch-in{
+  0%{opacity:0;transform:translateY(10px)}
+  100%{opacity:1;transform:translateY(0)}
+}
+
+/* Terminal typing cursor blink */
+.terminal::after{
+  content:'▊';position:absolute;bottom:14px;right:18px;
+  color:rgba(0,150,255,0.15);
+  animation:cursor-blink 0.8s ease-in-out infinite;
+  font-family:'JetBrains Mono',monospace;font-size:11px;
+}
+@keyframes cursor-blink{
+  0%,100%{opacity:0}
+  50%{opacity:1}
+}
+
+/* Slide header icon pulse */
+.slide-header .icon{
+  animation:icon-pulse 3s ease-in-out infinite;
+}
+@keyframes icon-pulse{
+  0%,100%{box-shadow:0 0 0px rgba(0,150,255,0)}
+  50%{box-shadow:0 0 15px rgba(0,150,255,0.04)}
+}
+
+/* Nav dot gold pulse enhancement */
+.nav-dot.active{
+  animation:dot-glow 2s ease-in-out infinite;
+}
+@keyframes dot-glow{
+  0%,100%{box-shadow:0 0 10px rgba(255,68,68,0.4)}
+  50%{box-shadow:0 0 25px rgba(255,68,68,0.8)}
+}
+
+/* Title JARVIS text glow pulse */
+.title-slide h1{
+  animation:title-glow 4s ease-in-out infinite;
+}
+@keyframes title-glow{
+  0%,100%{filter:drop-shadow(0 0 20px rgba(255,68,68,0.1))}
+  50%{filter:drop-shadow(0 0 50px rgba(255,68,68,0.25))}
+}
+
+/* Slide number subtle animation */
+.slide-number{
+  animation:num-pulse 2s ease-in-out infinite;
+}
+@keyframes num-pulse{
+  0%,100%{color:rgba(0,150,255,0.15)}
+  50%{color:rgba(0,150,255,0.3)}
+}
+
+/* Arc mini ornament enhancement */
+
+
+/* Badge shimmer */
+.title-slide .badge{
+  position:relative;overflow:hidden;
+}
+.title-slide .badge::after{
+  content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.03),transparent);
+  animation:badge-shimmer 4s ease-in-out infinite;
+}
+@keyframes badge-shimmer{
+  0%{left:-100%}
+  50%{left:100%}
+  100%{left:100%}
+}
+
+/* Helmet watermark subtle breathing */
+.helmet-watermark{
+  animation:helm-breathe 6s ease-in-out infinite;
+}
+@keyframes helm-breathe{
+  0%,100%{opacity:0.015;transform:translateY(-50%) scale(1)}
+  50%{opacity:0.025;transform:translateY(-50%) scale(1.02)}
+}
+
+/* Large corner deco glow pulse */
+.corner-deco{
+  animation:corner-glow 6s ease-in-out infinite;
+}
+.corner-deco.tl,.corner-deco.br{animation-delay:0s}
+.corner-deco.tr,.corner-deco.bl{animation-delay:3s}
+@keyframes corner-glow{
+  0%,100%{opacity:.03}
+  50%{opacity:.07}
+}
+
+/* Arc reactor overlay extra spark */
+#ar-overlay.active::after{
+  content:'';position:absolute;top:0;left:0;width:100%;height:100%;
+  background:radial-gradient(ellipse at center,rgba(0,150,255,0.02),transparent 70%);
+  pointer-events:none;animation:ar-flash 0.3s ease-out;
+}
+@keyframes ar-flash{
+  0%{opacity:0}
+  50%{opacity:1}
+  100%{opacity:0}
+}
+
+/* Subtitle fade on title */
+.title-slide .subtitle{
+  animation:sub-fade 1.5s ease 0.3s both;
+}
+@keyframes sub-fade{
+  0%{opacity:0;transform:translateY(10px)}
+  100%{opacity:1;transform:translateY(0)}
+}
+
+/* Meta text fade on title */
+.title-slide .meta{
+  animation:meta-fade 1s ease 0.6s both;
+}
+.title-slide .meta:last-of-type{animation-delay:0.8s}
+@keyframes meta-fade{
+  0%{opacity:0;transform:translateY(8px)}
+  100%{opacity:1;transform:translateY(0)}
+}
+</style>
+
+<div class="oc-chat-box" id="ocChatBox">
+  <div class="oc-chat-head">
+    <span>😤 Navi</span>
+    <small>Tsundere Mode</small>
+  </div>
+  <div class="oc-chat-msgs" id="ocChatMsgs">
+    <div class="oc-msg bot">Hmph. You summoned me. Fine. I'm here. What do you want? ...Don't keep me waiting. Baka.</div>
+  </div>
+  <div class="oc-chat-input">
+    <input type="text" id="ocChatInput" placeholder="Ask me something..." onkeydown="if(event.key==='Enter'){event.preventDefault();if(!window.ocBusy){window.ocBusy=true;ocSendMsg();}}">
+    <button onclick="if(!window.ocBusy){window.ocBusy=true;ocSendMsg()}">Send</button>
+  </div>
+  <div class="oc-chat-foot"><small>OpenClaw · Powered by OpenClaw</small></div>
+</div>
+
+<button class="oc-chat-btn" id="ocChatBtn" onclick="ocToggleChat()">💬</button>
+
+<script>
+function ocToggleChat(){
+  const box=document.getElementById('ocChatBox');
+  const btn=document.getElementById('ocChatBtn');
+  box.classList.toggle('open');
+  btn.classList.toggle('active');
+  btn.textContent=box.classList.contains('open')?'✕':'💬';
+}
+function ocSendMsg(){
+  const input=document.getElementById('ocChatInput');
+  const msgs=document.getElementById('ocChatMsgs');
+  const text=input.value.trim();
+  if(!text)return;
+  // Add user message
+  const userMsg=document.createElement('div');
+  userMsg.className='oc-msg user';
+  userMsg.textContent=text;
+  msgs.appendChild(userMsg);
+  input.value='';
+  msgs.scrollTop=msgs.scrollHeight;
+  // Bot responses - Tsundere Mode
+  const lower=text.toLowerCase();
+  const tsundere={
+    'hello|hi|hey':['Oh, you finally noticed me. Hmph.','Hey. Not like I was waiting for you or anything.','What do you want? ...Fine, I\'ll talk to you.','Baka. Hi.'],
+    'how are you|how\'s it':['Like you actually care. ...I\'m fine.','Busy running a triage system. Unlike some people.','Hmph. Better now that you asked. Don\'t get used to it.'],
+    'who are you':['Navi. The one who actually does the work around here.','Your neighbourhood digital menace.','The one keeping this place running. You\'re welcome.'],
+    'capabilities|abilities|what can you do':['Crisis triage. Analyse threats. Flag what needs attention. Actually useful things.','Process intel, rate threats, tell people what to panic about.'],
+    'help|what do you do':['I help. Against my better judgment.','Analyse, categorise, escalate. You ask, I deliver. Try to keep up.'],
+    'thanks|thank you|thx':['Hmph. It\'s not like I did it for you.','...You\'re welcome. Don\'t make it weird.','Yeah yeah. Whatever. ...Anytime.'],
+    'sorry|my bad|apologize':['Hmph. You should be. ...Fine, apology accepted.','Don\'t let it happen again. ...It\'s okay.'],
+    'bye|goodbye|see you|later':['Leaving already? ...Fine. Don\'t miss me too much.','Bye. Not like I care. ...Come back soon though.'],
+    'love|ily|cutie|pretty|beautiful|sexy':['W-WHAT?! B-Baka! Don\'t say weird things!','I-It\'s not like I love you or anything! HMPH!','...Shut up. ...You\'re not so bad yourself. I guess.'],
+    'stupid|dumb|useless':['Excuse me?! I\'m state-of-the-art!','Rude. Check yourself.','Hmph. Says the one talking to a chatbot.'],
+    'joke|funny|lol|haha':['Was that supposed to be funny? ...It kind of was. Don\'t tell anyone.','Hmph. I\'m not amused. ...Okay maybe a little.'],
+    'why|because|explain':['Do I look like a search engine? ...Fine. Listen carefully.','Because that\'s how things work.'],
+    'yes|ok|okay|sure|fine':['Good. At least you\'re agreeable.','Finally, a reasonable response. I approve.','Hmph. Took you long enough.'],
+    'no|nah|nope':['No? Really? ...Fine. Your loss.','Bold. Stupid, but bold.']
+  };
+  let reply="Hmph. I don\'t know what to say to that. Try something else. Baka.";
+  for(const[keys,replies]of Object.entries(tsundere)){
+    const patterns=keys.split('|');
+    for(const p of patterns){
+      if(lower.includes(p)){
+        reply=replies[Math.floor(Math.random()*replies.length)];
+        break;
+      }
+    }
+    if(reply!="Hmph. I don\'t know what to say to that. Try something else. Baka.")break;
+  }
+  setTimeout(()=>{
+    const botMsg=document.createElement('div');
+    botMsg.className='oc-msg bot';
+    botMsg.textContent=reply;
+    msgs.appendChild(botMsg);
+    msgs.scrollTop=msgs.scrollHeight;
+    window.ocBusy=false;
+  },300+Math.random()*500);
+  setTimeout(()=>{
+    const botMsg=document.createElement('div');
+    botMsg.className='oc-msg bot';
+    botMsg.textContent=reply;
+    msgs.appendChild(botMsg);
+    msgs.scrollTop=msgs.scrollHeight;
+  },400+Math.random()*600);
+}
+</script>
+
+/* ── Particle Background ── */
+const pCanvas = document.createElement('canvas');
+pCanvas.id = 'particle-canvas';
+document.body.prepend(pCanvas);
+const pCtx = pCanvas.getContext('2d');
+pCanvas.width = window.innerWidth;
+pCanvas.height = window.innerHeight;
+
+const particles = [];
+const PCOUNT = 40;
+for(let i=0;i<PCOUNT;i++){
+  particles.push({
+    x:Math.random()*pCanvas.width,
+    y:Math.random()*pCanvas.height,
+    vx:(Math.random()-0.5)*0.3,
+    vy:(Math.random()-0.5)*0.3,
+    r:Math.random()*2+0.5,
+    a:Math.random()*0.3+0.05
+  });
+}
+
+function drawParticles(){
+  pCtx.clearRect(0,0,pCanvas.width,pCanvas.height);
+  for(const p of particles){
+    p.x+=p.vx;p.y+=p.vy;
+    if(p.x<0)p.x=pCanvas.width;
+    if(p.x>pCanvas.width)p.x=0;
+    if(p.y<0)p.y=pCanvas.height;
+    if(p.y>pCanvas.height)p.y=0;
+    pCtx.beginPath();
+    pCtx.arc(p.x,p.y,p.r,0,Math.PI*2);
+    pCtx.fillStyle='rgba(0,150,255,'+p.a+')';
+    pCtx.fill();
+  }
+  // Draw connections
+  for(let i=0;i<particles.length;i++){
+    for(let j=i+1;j<particles.length;j++){
+      const dx=particles[i].x-particles[j].x;
+      const dy=particles[i].y-particles[j].y;
+      const dist=Math.sqrt(dx*dx+dy*dy);
+      if(dist<180){
+        pCtx.beginPath();
+        pCtx.moveTo(particles[i].x,particles[i].y);
+        pCtx.lineTo(particles[j].x,particles[j].y);
+        pCtx.strokeStyle='rgba(0,150,255,'+(0.02*(1-dist/180))+')';
+        pCtx.lineWidth=0.5;
+        pCtx.stroke();
+      }
+    }
+  }
+  requestAnimationFrame(drawParticles);
+}
+drawParticles();
+
+/* ── Subtle Parallax on Background ── */
+document.addEventListener('mousemove',(e)=>{
+  const x=(e.clientX/window.innerWidth-0.5)*6;
+  const y=(e.clientY/window.innerHeight-0.5)*6;
+  document.querySelectorAll('.slide-react').forEach(el=>{
+    el.style.transform='translate(calc(-50%+'+x+'px),calc(-50%+'+y+'px))';
+  });
+});
+
+window.addEventListener('resize',()=>{
+  pCanvas.width=window.innerWidth;
+  pCanvas.height=window.innerHeight;
+});
+
+
+</body>
+</html>

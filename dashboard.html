@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARVIS — Crisis Information Triage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-deep: #07070d;
+    --bg-card: #0e0e17;
+    --bg-card-hover: #141422;
+    --border: rgba(255,255,255,0.06);
+    --border-hover: rgba(255,255,255,0.1);
+    --text: #e2e2e8;
+    --text-dim: rgba(255,255,255,0.55);
+    --text-muted: rgba(255,255,255,0.12);
+    --accent: #f59e0b;
+    --accent-glow: rgba(245,158,11,0.12);
+    --radius: 12px;
+    --radius-sm: 8px;
+    --radius-lg: 16px;
+    --shadow: 0 2px 20px rgba(0,0,0,0.3);
+  }
+
+  /* ── Light Mode ── */
+  [data-theme="light"] {
+    --bg-deep: #f5f5f0;
+    --bg-card: #ffffff;
+    --bg-card-hover: #f0efea;
+    --border: rgba(0,0,0,0.08);
+    --border-hover: rgba(0,0,0,0.14);
+    --text: #1a1a1a;
+    --text-dim: #333333;
+    --text-muted: #555555;
+    --accent: #d97706;
+    --accent-glow: rgba(217,119,6,0.1);
+    --shadow: 0 2px 20px rgba(0,0,0,0.06);
+  }
+  [data-theme="light"] body {
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(217,119,6,0.04) 0%, transparent 70%),
+      radial-gradient(ellipse 60% 40% at 80% 80%, rgba(217,119,6,0.02) 0%, transparent 60%);
+  }
+  [data-theme="light"] .email-card:hover {
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  }
+  [data-theme="light"] .card-detail-inner {
+    background: rgba(0,0,0,0.03);
+    border-color: rgba(0,0,0,0.06);
+  }
+  [data-theme="light"] .empty-state {
+    border-color: rgba(0,0,0,0.1);
+  }
+  [data-theme="light"] ::-webkit-scrollbar-thumb {
+    background: rgba(0,0,0,0.15);
+  }
+  [data-theme="light"] .stat-all .stat-num { color: #000000; }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: var(--bg-deep);
+    color: var(--text);
+    min-height: 100vh;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(245,158,11,0.03) 0%, transparent 70%),
+      radial-gradient(ellipse 60% 40% at 80% 80%, rgba(245,158,11,0.015) 0%, transparent 60%);
+  }
+
+  /* ── Layout ── */
+  .app { max-width: 1280px; margin: 0 auto; padding: 28px 32px; }
+
+  /* ── Top Bar ── */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .brand-icon {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, rgba(245,158,11,0.15), rgba(249,115,22,0.1));
+    border: 1px solid rgba(245,158,11,0.15);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+  .brand h1 {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    background: linear-gradient(135deg, #f59e0b, #fb923c);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.2;
+  }
+  .brand .sub {
+    font-size: 11px;
+    color: var(--text-dim);
+    font-weight: 400;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    -webkit-text-fill-color: var(--text-dim);
+  }
+
+  .topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.03);
+    color: var(--text-dim);
+  }
+  .btn:hover {
+    background: rgba(255,255,255,0.06);
+    border-color: var(--border-hover);
+    color: var(--text);
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, rgba(245,158,11,0.12), rgba(249,115,22,0.08));
+    border-color: rgba(245,158,11,0.2);
+    color: #f59e0b;
+  }
+  .btn-primary:hover {
+    background: linear-gradient(135deg, rgba(245,158,11,0.2), rgba(249,115,22,0.14));
+    border-color: rgba(245,158,11,0.3);
+    color: #fbbf24;
+  }
+  .last-update {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Stats Grid ── */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 10px;
+    margin-bottom: 28px;
+  }
+  .stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .stat-card:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--border-hover);
+    transform: translateY(-1px);
+  }
+  .stat-card.active {
+    border-color: var(--accent);
+    background: rgba(245,158,11,0.04);
+    box-shadow: 0 0 20px var(--accent-glow);
+  }
+  .stat-card.active::before { opacity: 1; }
+
+  .stat-card .stat-num {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .stat-card .stat-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    font-weight: 500;
+  }
+
+  /* Stat accent colors */
+  .stat-all .stat-num { color: #e0e0e8; }
+  .stat-all.active::before { background: #e0e0e8; }
+  .stat-pending .stat-num { color: #f59e0b; }
+  .stat-pending.active::before { background: #f59e0b; }
+  .stat-low_concern .stat-num { color: #34d399; }
+  .stat-low_concern::before { background: #34d399; }
+  .stat-mild .stat-num { color: #facc15; }
+  .stat-mild::before { background: #facc15; }
+  .stat-critical .stat-num { color: #f87171; }
+  .stat-critical::before { background: #f87171; }
+  .stat-spam .stat-num { color: #a78bfa; }
+  .stat-spam::before { background: #a78bfa; }
+  .stat-scam .stat-num { color: #fb923c; }
+  .stat-scam::before { background: #fb923c; }
+
+  /* ── Search / Filter bar ── */
+  .filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .search-box {
+    flex: 1;
+    min-width: 200px;
+    position: relative;
+  }
+  .search-box input {
+    width: 100%;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px 10px 36px;
+    color: var(--text);
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .search-box input:focus {
+    border-color: rgba(245,158,11,0.3);
+  }
+  .search-box input::placeholder { color: var(--text-muted); }
+  .search-box .icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 14px;
+    opacity: 0.3;
+    pointer-events: none;
+  }
+  .filter-badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .filter-badge:hover { border-color: var(--border-hover); color: var(--text); }
+  .filter-badge.active {
+    background: var(--accent-glow);
+    border-color: rgba(245,158,11,0.2);
+    color: #f59e0b;
+  }
+
+  /* ── Section Header ── */
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .section-header h2 {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .section-header .count {
+    font-size: 13px;
+    color: var(--text-dim);
+    font-weight: 400;
+  }
+
+  /* ── Email Cards ── */
+  .card-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .email-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .email-card:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--border-hover);
+  }
+
+  .card-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  /* Type icon circle */
+  .card-type-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    flex-shrink: 0;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    margin-top: 1px;
+  }
+
+  .card-body { flex: 1; min-width: 0; }
+  .card-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+  }
+  .card-tag {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 4px;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .card-sender {
+    font-size: 12px;
+    color: var(--text-dim);
+    font-weight: 500;
+  }
+  .card-time {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-left: auto;
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .card-subject {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .card-summary {
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* File type badges on card */
+  .file-badges {
+    display: flex;
+    gap: 4px;
+    margin-top: 4px;
+    flex-wrap: wrap;
+  }
+  .file-badge {
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 3px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+  }
+
+  /* Expand detail */
+  .card-detail {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+                opacity 0.3s ease;
+    opacity: 0;
+  }
+  .card-detail.open {
+    max-height: 600px;
+    opacity: 1;
+  }
+  .card-detail-inner {
+    margin-top: 14px;
+    padding: 16px;
+    background: rgba(0,0,0,0.25);
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(255,255,255,0.04);
+  }
+  .card-detail-text {
+    font-size: 13px;
+    line-height: 1.8;
+    color: var(--text-dim);
+    white-space: pre-wrap;
+  }
+  .card-detail-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .card-detail-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+  .card-detail-actions a {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 6px 14px;
+    border-radius: 6px;
+    text-decoration: none;
+    transition: all 0.2s;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+  }
+  .card-detail-actions a:hover {
+    background: var(--accent-glow);
+    border-color: rgba(245,158,11,0.2);
+    color: #f59e0b;
+  }
+
+  .expand-arrow {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-left: 6px;
+    transition: transform 0.3s;
+    display: inline-block;
+  }
+  .expanded .expand-arrow { transform: rotate(180deg); }
+
+  /* ── Empty State ── */
+  .empty-state {
+    text-align: center;
+    padding: 80px 20px;
+    background: var(--bg-card);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-lg);
+  }
+  .empty-state .icon { font-size: 52px; margin-bottom: 16px; display: block; }
+  .empty-state h3 { font-size: 18px; font-weight: 600; margin-bottom: 6px; }
+  .empty-state p { font-size: 13px; color: var(--text-dim); max-width: 360px; margin: 0 auto; }
+
+  /* ── Skeleton Loading ── */
+  @keyframes shimmer {
+    0% { background-position: -200px 0; }
+    100% { background-position: calc(200px + 100%) 0; }
+  }
+  .skeleton {
+    background: linear-gradient(90deg, var(--bg-card) 0%, rgba(255,255,255,0.04) 50%, var(--bg-card) 100%);
+    background-size: 200px 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+    border-radius: 6px;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 768px) {
+    .app { padding: 16px; }
+    .stats { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
+    .stat-card { padding: 12px; }
+    .stat-card .stat-num { font-size: 22px; }
+    .topbar { flex-direction: column; align-items: flex-start; }
+    .topbar-actions { width: 100%; justify-content: flex-end; }
+    .card-row { flex-direction: column; }
+    .card-type-icon { display: none; }
+    .card-time { margin-left: 0; }
+  }
+
+  @media (max-width: 480px) {
+    .stats { grid-template-columns: repeat(3, 1fr); }
+    .card-top { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- Top Bar -->
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-icon">🤖</div>
+      <div>
+        <h1>JARVIS <span class="sub">Crisis Information Triage</span></h1>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <span class="last-update" id="lastUpdate">⟳ loading...</span>
+      <button class="btn" id="themeToggle" onclick="toggleTheme()" title="Toggle theme">🌙</button>
+      <a href="/upload" class="btn btn-primary">📤 Upload Files</a>
+      <button class="btn" onclick="refreshData()">↻ Refresh</button>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats" id="statsBar">
+    <div class="stat-card stat-all active" data-filter="all" onclick="filterEmails('all')">
+      <div class="stat-num" id="countAll">-</div>
+      <div class="stat-label">Total</div>
+    </div>
+    <div class="stat-card stat-low_concern" data-filter="low_concern" onclick="filterEmails('low_concern')">
+      <div class="stat-num" id="countLowConcern">-</div>
+      <div class="stat-label">🟢 Low Concern</div>
+    </div>
+    <div class="stat-card stat-mild" data-filter="mild" onclick="filterEmails('mild')">
+      <div class="stat-num" id="countMild">-</div>
+      <div class="stat-label">🟡 Mild</div>
+    </div>
+    <div class="stat-card stat-critical" data-filter="critical" onclick="filterEmails('critical')">
+      <div class="stat-num" id="countCritical">-</div>
+      <div class="stat-label">🔴 Critical</div>
+    </div>
+    <div class="stat-card stat-spam" data-filter="spam" onclick="filterEmails('spam')">
+      <div class="stat-num" id="countSpam">-</div>
+      <div class="stat-label">📣 Spam</div>
+    </div>
+    <div class="stat-card stat-scam" data-filter="scam" onclick="filterEmails('scam')">
+      <div class="stat-num" id="countScam">-</div>
+      <div class="stat-label">💰 Scam</div>
+    </div>
+    <div class="stat-card stat-pending" data-filter="pending" onclick="filterEmails('pending')">
+      <div class="stat-num" id="countPending">-</div>
+      <div class="stat-label">⏳ Pending</div>
+    </div>
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="filter-bar">
+    <div class="search-box">
+      <span class="icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="Search by sender, subject, or content..." oninput="filterEmails(currentFilter)">
+    </div>
+    <span class="filter-badge" data-sort="newest" onclick="toggleSort()" id="sortBadge">↓ Newest</span>
+  </div>
+
+  <!-- Section Header -->
+  <div class="section-header">
+    <h2 id="sectionTitle">All Items</h2>
+    <span class="count" id="itemCount"></span>
+  </div>
+
+  <!-- Email List -->
+  <div class="card-list" id="emailList"></div>
+</div>
+
+<script>
+const CATEGORIES = {
+  pending:     { emoji: "⏳", name: "Pending",     bg: "rgba(245,158,11,0.12)", color: "#f59e0b" },
+  low_concern: { emoji: "🟢", name: "Low Concern", bg: "rgba(52,211,153,0.12)", color: "#34d399" },
+  mild:        { emoji: "🟡", name: "Mild",        bg: "rgba(250,204,21,0.12)",  color: "#facc15" },
+  critical:    { emoji: "🔴", name: "Critical",    bg: "rgba(248,113,113,0.12)", color: "#f87171" },
+  spam:        { emoji: "📣", name: "Spam",        bg: "rgba(167,139,250,0.12)", color: "#a78bfa" },
+  scam:        { emoji: "💰", name: "Scam",        bg: "rgba(251,146,60,0.12)",  color: "#fb923c" },
+};
+
+const FILE_ICONS = { text: "📝", image: "🖼️", pdf: "📄", audio: "🎵", video: "🎬" };
+const FILE_LABELS = { text: "Text", image: "Image", pdf: "PDF", audio: "Audio", video: "Video" };
+
+let currentFilter = "all";
+let sortNewest = true;
+let allEmails = [];
+let searchTerm = "";
+
+function escapeHtml(text) {
+  const d = document.createElement('div');
+  d.textContent = text;
+  return d.innerHTML;
+}
+
+function timeAgo(iso) {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return mins + "m ago";
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return hrs + "h " + (mins % 60) + "m ago";
+  return new Date(iso).toLocaleDateString();
+}
+
+function getFileTypeIcon(types) {
+  if (!types || types.length === 0) return "📧";
+  if (types.length === 1) return FILE_ICONS[types[0]] || "📁";
+  return types.map(t => FILE_ICONS[t] || "📁").join("");
+}
+
+function getSourceLabel(source, types) {
+  if (source === "manual_upload") {
+    if (types && types.length) {
+      return types.map(t => FILE_LABELS[t] || t).join(" + ");
+    }
+    return "File Upload";
+  }
+  return "Email";
+}
+
+function getSourceIcon(source, types) {
+  if (source === "manual_upload") {
+    return getFileTypeIcon(types);
+  }
+  return "📧";
+}
+
+function renderEmails(emails) {
+  const container = document.getElementById('emailList');
+
+  let filtered = currentFilter === 'all' ? emails : emails.filter(e => e.category === currentFilter);
+
+  if (searchTerm) {
+    const st = searchTerm.toLowerCase();
+    filtered = filtered.filter(e =>
+      (e.subject || '').toLowerCase().includes(st) ||
+      (e.sender || '').toLowerCase().includes(st) ||
+      (e.one_line_summary || '').toLowerCase().includes(st)
+    );
+  }
+
+  const sorted = sortNewest ? [...filtered].reverse() : filtered;
+
+  document.getElementById('itemCount').textContent = `${sorted.length} item${sorted.length !== 1 ? 's' : ''}`;
+
+  if (sorted.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <span class="icon">📭</span>
+        <h3>Nothing here yet</h3>
+        <p>No items match your current filter. Upload files or wait for incoming emails.</p>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = sorted.map((e) => {
+    const cat = CATEGORIES[e.category] || CATEGORIES.pending;
+    const sourceIcon = getSourceIcon(e.source, e.file_types);
+    const sourceLabel = getSourceLabel(e.source, e.file_types);
+    const timeStr = timeAgo(e.timestamp);
+    const sender = escapeHtml(e.sender || "unknown");
+    const subject = escapeHtml(e.subject || "(no subject)");
+    const oneLine = escapeHtml(e.one_line_summary || e.subject || "");
+    const longer = escapeHtml(e.longer_summary || "No details available.");
+    const eid = escapeHtml(e.id);
+
+    // Priority badge
+    const priority = e.priority || 'medium';
+    const pMeta = { high: {emoji: '🔴', label: 'High Priority'}, medium: {emoji: '🟡', label: 'Medium'}, low: {emoji: '🟢', label: 'Low Priority'} };
+    const pStyle = { high: 'background:rgba(239,68,68,0.12);color:#ef4444;', medium: 'background:rgba(245,158,11,0.12);color:#f59e0b;', low: 'background:rgba(52,211,153,0.12);color:#34d399;' };
+    const pInfo = pMeta[priority] || pMeta.medium;
+    const priorityBadge = `<span class="card-priority" style="${pStyle[priority]||pStyle.medium}font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;margin-left:6px;">${pInfo.emoji} ${pInfo.label}</span>`;
+
+    const fileBadges = e.file_types ? e.file_types.map(t =>
+      `<span class="file-badge">${FILE_ICONS[t] || '📁'} ${FILE_LABELS[t] || t}</span>`
+    ).join('') : '';
+
+    return `
+      <div class="email-card" data-category="${e.category}" onclick="toggleDetail('${eid}')">
+        <div class="card-row">
+          <div class="card-type-icon">${sourceIcon}</div>
+          <div class="card-body">
+            <div class="card-top">
+              <span class="card-tag" style="background:${cat.bg};color:${cat.color};">${cat.emoji} ${cat.name}</span>
+              ${priorityBadge}
+              <span class="card-sender">${sender}</span>
+              <span class="card-time">${timeStr}</span>
+            </div>
+            <div class="card-subject">${subject}</div>
+            <div class="card-summary">${oneLine}</div>
+            ${fileBadges ? `<div class="file-badges">${fileBadges}</div>` : ''}
+          </div>
+        </div>
+        <div class="card-detail" id="detail-${eid}">
+          <div class="card-detail-inner">
+            <div class="card-detail-meta">${sourceLabel} · 🆔 ${eid.slice(0,12)} · ${e.url_count || 0} link${e.url_count !== 1 ? 's' : ''}</div>
+            <div class="card-detail-text">${longer}</div>
+            <div class="card-detail-actions">
+              <a href="/analysis/${eid}" target="_blank">🔍 View Full Analysis</a>
+              <a href="#" onclick="event.stopPropagation();filterEmails('${e.category}')">📂 Similar Items</a>
+            </div>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function toggleDetail(id) {
+  const el = document.getElementById('detail-' + id);
+  const card = el?.closest('.email-card');
+  if (!el) return;
+  el.classList.toggle('open');
+  card?.classList.toggle('expanded');
+}
+
+function updateStats(emails) {
+  const counts = {};
+  for (const e of emails) {
+    counts[e.category] = (counts[e.category] || 0) + 1;
+  }
+  document.getElementById('countAll').textContent = emails.length;
+  document.getElementById('countLowConcern').textContent = counts.low_concern || 0;
+  document.getElementById('countMild').textContent = counts.mild || 0;
+  document.getElementById('countCritical').textContent = counts.critical || 0;
+  document.getElementById('countSpam').textContent = counts.spam || 0;
+  document.getElementById('countScam').textContent = counts.scam || 0;
+  document.getElementById('countPending').textContent = counts.pending || 0;
+}
+
+function filterEmails(filter) {
+  if (filter) currentFilter = filter;
+
+  const searchInput = document.getElementById('searchInput');
+  searchTerm = searchInput ? searchInput.value : "";
+
+  document.querySelectorAll('.stat-card').forEach(el => {
+    el.classList.toggle('active', el.dataset.filter === currentFilter);
+  });
+
+  const labels = { all: "All Items", low_concern: "Low Concern", mild: "Mild",
+                   critical: "Critical", spam: "Spam", scam: "Scam", pending: "Pending" };
+  document.getElementById('sectionTitle').textContent = labels[currentFilter] || "All Items";
+
+  renderEmails(allEmails);
+}
+
+function toggleSort() {
+  sortNewest = !sortNewest;
+  document.getElementById('sortBadge').textContent = sortNewest ? '↓ Newest' : '↑ Oldest';
+  renderEmails(allEmails);
+}
+
+async function refreshData() {
+  try {
+    const resp = await fetch('/api/emails');
+    const data = await resp.json();
+    allEmails = data.emails || [];
+    updateStats(allEmails);
+    filterEmails(currentFilter);
+    document.getElementById('lastUpdate').textContent = "Updated " + new Date().toLocaleTimeString();
+  } catch(e) {
+    document.getElementById('lastUpdate').textContent = "⚠️ Connection error";
+  }
+}
+
+// ── Theme Toggle ──
+function getTheme() {
+  return localStorage.getItem('jarvis-theme') || 'dark';
+}
+function setTheme(theme) {
+  localStorage.setItem('jarvis-theme', theme);
+  document.documentElement.setAttribute('data-theme', theme === 'light' ? 'light' : '');
+  document.getElementById('themeToggle').textContent = theme === 'light' ? '☀️' : '🌙';
+}
+function toggleTheme() {
+  setTheme(getTheme() === 'light' ? 'dark' : 'light');
+}
+// Init theme on load
+setTheme(getTheme());
+
+// Auto refresh
+setInterval(refreshData, 30000);
+refreshData();
+</script>
+<!-- ── Chatbot ── -->
+<div class="chatbot" id="chatbot">
+  <button class="chatbot-toggle" id="chatToggle" onclick="toggleChat()">
+    <span class="chat-icon">💬</span>
+    <span class="chat-close">✕</span>
+  </button>
+  <div class="chatbot-panel" id="chatPanel">
+    <div class="chatbot-header">
+      <span>🤖 JARVIS Assistant</span>
+      <span class="chatbot-status">● Online</span>
+    </div>
+    <div class="chatbot-messages" id="chatMessages">
+      <div class="chat-msg bot">Hi! I'm JARVIS. Ask me about emails on this dashboard.</div>
+    </div>
+    <div class="chatbot-input">
+      <input type="text" id="chatInput" placeholder="Ask something..." onkeydown="if(event.key==='Enter') sendChat()">
+      <button onclick="sendChat()">➤</button>
+    </div>
+  </div>
+</div>
+
+<style>
+  .chatbot { position: fixed; bottom: 24px; right: 24px; z-index: 9999; font-family: 'Inter', system-ui, sans-serif; }
+  .chatbot-toggle {
+    width: 54px; height: 54px; border-radius: 50%; border: none;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: #fff; font-size: 24px; cursor: pointer;
+    box-shadow: 0 4px 20px rgba(245,158,11,0.35);
+    transition: all 0.25s; position: relative; display: flex;
+    align-items: center; justify-content: center;
+  }
+  .chatbot-toggle:hover { transform: scale(1.08); }
+  .chat-close { display: none; font-size: 18px; }
+  .chatbot.open .chat-icon { display: none; }
+  .chatbot.open .chat-close { display: block; }
+
+  .chatbot-panel {
+    position: absolute; bottom: 66px; right: 0;
+    width: 360px; max-height: 480px;
+    background: #0e0e17; border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 16px; overflow: hidden;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+    display: none; flex-direction: column;
+  }
+  .chatbot.open .chatbot-panel { display: flex; }
+
+  [data-theme="light"] .chatbot-panel { background: #fff; border-color: rgba(0,0,0,0.08); }
+
+  .chatbot-header {
+    padding: 14px 16px;
+    background: rgba(245,158,11,0.1);
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-size: 14px; font-weight: 600; color: #f59e0b;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  [data-theme="light"] .chatbot-header { background: rgba(245,158,11,0.06); border-bottom-color: rgba(0,0,0,0.04); }
+  .chatbot-status { font-size: 11px; font-weight: 400; color: #34d399; letter-spacing: 0.3px; }
+
+  .chatbot-messages {
+    flex: 1; padding: 12px; overflow-y: auto;
+    max-height: 340px; min-height: 200px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .chat-msg {
+    max-width: 85%; padding: 10px 14px; border-radius: 12px;
+    font-size: 13px; line-height: 1.5; white-space: pre-wrap; animation: fadeIn 0.25s ease;
+  }
+  .chat-msg.bot {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.04);
+    color: rgba(255,255,255,0.8);
+    align-self: flex-start; border-bottom-left-radius: 4px;
+  }
+  .chat-msg.user {
+    background: rgba(245,158,11,0.12);
+    border: 1px solid rgba(245,158,11,0.12);
+    color: #fbbf24;
+    align-self: flex-end; border-bottom-right-radius: 4px;
+  }
+  [data-theme="light"] .chat-msg.bot { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.06); color: #333; }
+  [data-theme="light"] .chat-msg.user { background: rgba(245,158,11,0.1); border-color: rgba(245,158,11,0.15); color: #92400e; }
+
+  .chatbot-input {
+    display: flex; padding: 8px; gap: 6px;
+    border-top: 1px solid rgba(255,255,255,0.04);
+    background: rgba(0,0,0,0.15);
+  }
+  [data-theme="light"] .chatbot-input { background: rgba(0,0,0,0.02); border-top-color: rgba(0,0,0,0.06); }
+  .chatbot-input input {
+    flex: 1; padding: 9px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);
+    background: rgba(255,255,255,0.04); color: #e0e0e0; font-size: 13px;
+    outline: none; font-family: inherit;
+  }
+  .chatbot-input input:focus { border-color: rgba(245,158,11,0.3); }
+  [data-theme="light"] .chatbot-input input { border-color: rgba(0,0,0,0.1); background: rgba(0,0,0,0.02); color: #333; }
+  .chatbot-input button {
+    width: 36px; height: 36px; border-radius: 8px; border: none;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: #fff; font-size: 16px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .chatbot-input button:hover { opacity: 0.9; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+  @media (max-width: 480px) {
+    .chatbot-panel { width: calc(100vw - 48px); right: -12px; }
+  }
+</style>
+
+<script>
+let chatOpen = false;
+
+function toggleChat() {
+  chatOpen = !chatOpen;
+  document.getElementById('chatbot').classList.toggle('open', chatOpen);
+  if (chatOpen) document.getElementById('chatInput').focus();
+}
+
+function buildEmailContext() {
+  if (allEmails.length === 0) return 'No emails on the dashboard yet.';
+  const sorted = [...allEmails].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  let ctx = 'Current emails on the dashboard (' + allEmails.length + ' total):\n\n';
+  sorted.slice(0, 15).forEach((e, i) => {
+    ctx += (i + 1) + '. From: ' + (e.sender || 'unknown') + '\n'
+      + '   Subject: ' + (e.subject || '(no subject)') + '\n'
+      + '   Category: ' + (e.category || 'pending') + '\n'
+      + '   Priority: ' + (e.priority || 'medium') + '\n'
+      + '   Time: ' + (e.timestamp || '') + '\n'
+      + '   Summary: ' + (e.one_line_summary || 'N/A').slice(0, 200) + '\n\n';
+  });
+  if (allEmails.length > 15) ctx += '... and ' + (allEmails.length - 15) + ' more emails.\n';
+  return ctx;
+}
+
+function sendChat() {
+  const input = document.getElementById('chatInput');
+  const msg = input.value.trim();
+  if (!msg) return;
+
+  const msgs = document.getElementById('chatMessages');
+  
+  // User message
+  const userDiv = document.createElement('div');
+  userDiv.className = 'chat-msg user';
+  userDiv.textContent = msg;
+  msgs.appendChild(userDiv);
+  input.value = '';
+
+  const lower = msg.toLowerCase();
+
+  // Quick local handler for reading the latest email
+  // Parse ordinal/index from query: first/second/third/1st/2nd/3rd/latest/recent/newest
+  const ordinalMap = { first: 0, second: 1, third: 2, fourth: 3, fifth: 4, sixth: 5, seventh: 6, eighth: 7, ninth: 8, tenth: 9, last: 0, latest: 0, recent: 0, newest: 0 };
+  let emailIndex = null;
+  for (const [word, idx] of Object.entries(ordinalMap)) {
+    if (lower.includes(word)) {
+      emailIndex = idx;
+      break;
+    }
+  }
+  // Also parse "1st", "2nd", "3rd", "4th" etc.
+  const ordinalNumMatch = lower.match(/(\d+)(?:st|nd|rd|th)/);
+  if (ordinalNumMatch) {
+    emailIndex = parseInt(ordinalNumMatch[1]) - 1;
+  }
+  const isReadRequest = emailIndex !== null;
+
+  // Show loading indicator
+  const botDiv = document.createElement('div');
+  botDiv.className = 'chat-msg bot';
+  botDiv.textContent = '⏳ Thinking...';
+  msgs.appendChild(botDiv);
+  msgs.scrollTop = msgs.scrollHeight;
+
+  const setReply = (text) => {
+    botDiv.textContent = text;
+    msgs.scrollTop = msgs.scrollHeight;
+  };
+
+  // Build context: latest email details for "read" requests, full list for analysis
+  const sortedEmails = allEmails.length > 0
+    ? [...allEmails].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+    : [];
+  const targetEmail = sortedEmails[emailIndex] || null;
+  
+  if (isReadRequest && targetEmail) {
+    const cats = { pending: '⏳', low_concern: '🟢', mild: '🟡', critical: '🔴', spam: '📣', scam: '💰' };
+    const catEmoji = cats[targetEmail.category] || '📧';
+    const time = new Date(targetEmail.timestamp).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' });
+    const rawSender = targetEmail.sender || 'unknown';
+    const sender = rawSender.includes('address:') ? rawSender.match(/[\w.+-]+@[\w.-]+\.[\w]{2,}/)?.[0] || rawSender.replace(/\{address: "(.*?)".*/, '$1') : rawSender;
+    // Use the concise one-line summary instead of the full raw body
+    const summary = (targetEmail.one_line_summary || targetEmail.longer_summary || 'No summary available.')
+    const labels = ['Latest', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th', '10th'];
+    const label = labels[emailIndex] || (emailIndex + 1 + 'th');
+    setReply('📬 ' + label + ' email:\n'
+      + '━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n'
+      + 'From: ' + sender + '\n'
+      + 'Subject: ' + (targetEmail.subject || '(no subject)') + '\n'
+      + 'Time: ' + time + '\n'
+      + 'Category: ' + catEmoji + ' ' + (targetEmail.category || 'pending').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) + '\n'
+      + 'Priority: ' + (targetEmail.priority || 'medium').toUpperCase() + '\n'
+      + '━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n'
+      + summary);
+    return;
+  }
+  
+  if (isReadRequest && !targetEmail) {
+    if (allEmails.length > 0) {
+      const total = allEmails.length;
+      setReply('Only ' + total + ' email' + (total === 1 ? '' : 's') + ' on the dashboard. Try asking for the ' + (total === 1 ? 'latest' : {1:'second',2:'third',3:'fourth',4:'fifth'}[total-1] || 'latest') + ' one.');
+    } else {
+      setReply('📭 No emails on the dashboard yet.');
+    }
+    return;
+  }
+
+  // For everything else: ask the JARVIS API
+  const emailContext = buildEmailContext();
+  const userQuery = 'The user asked: "' + msg + '"\n\nDashboard context:\n' + emailContext;
+
+  fetch('/v1/responses', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-openclaw-model': 'openrouter/deepseek/deepseek-v4-flash'
+    },
+    body: JSON.stringify({
+      input: userQuery,
+      instructions: 'You are JARVIS, an email dashboard assistant for Group 14 at YDSP Claw Camp.\n\n'
+        + 'You have access to an email dashboard that categorises emails by risk (scam, critical, spam, mild, low concern) and priority (high, medium, low).\n'
+        + '\n--- CRITICAL RULES ---\n'
+        + '1. Be brief. Answer only what was asked. No fluff, no extra explanations.\n'
+        + '2. No markdown. No asterisks, no pipes, no backticks, no dashes, no brackets.\n'
+        + '3. One line per email. Do not repeat the priority if already stated.\n'
+        + '4. Skip the analysis page links unless the user asks for them.\n'
+        + '5. No introductory or closing pleasantries. Just the answer.\n'
+        + '\n--- GOOD EXAMPLE ---\n'
+        + 'User: show high priority emails\n'
+        + 'JARVIS: 2 high priority emails.\n'
+        + 'prof@university.edu - Assignment due tomorrow (low concern, academic reminder)\n'
+        + 'professor@university.edu - Assignment due this Friday (low concern, final project deadline)\n'
+        + '\n--- END EXAMPLE ---',
+      model: 'openclaw',
+      max_output_tokens: 2048
+    })
+  })
+    .then(res => {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    })
+    .then(data => {
+      const text = (data.output || [])
+        .filter(o => o.type === 'message')
+        .map(o => (o.content || []).map(c => c.text || '').join('\n'))
+        .join('\n\n');
+      if (text.trim()) {
+        setReply(text);
+      } else {
+        setReply('⚠️ I couldn\'t process that. Try rephrasing your question.');
+      }
+    })
+    .catch(err => {
+      setReply('⚠️ Error connecting to JARVIS: ' + err.message + '. Try again in a moment.');
+    });
+}
+</script>
+
+</body>
+</html>

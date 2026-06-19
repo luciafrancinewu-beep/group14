@@ -1,0 +1,222 @@
+{
+  "indices": {
+    "display": "Indices",
+    "emoji": "🔢",
+    "formulas": [
+      { "name": "Multiplication", "formula": "a^m × a^n = a^(m+n)" },
+      { "name": "Division", "formula": "a^m ÷ a^n = a^(m-n)" },
+      { "name": "Power of a power", "formula": "(a^m)^n = a^(mn)" },
+      { "name": "Zero exponent", "formula": "a^0 = 1" },
+      { "name": "Negative exponent", "formula": "a^(-n) = 1/a^n" },
+      { "name": "Fractional exponent (nth root)", "formula": "a^(1/n) = ⁿ√a" },
+      { "name": "Fractional exponent (general)", "formula": "a^(m/n) = (ⁿ√a)^m" }
+    ]
+  },
+  "surds": {
+    "display": "Surds",
+    "emoji": "√",
+    "formulas": [
+      { "name": "Product", "formula": "√(ab) = √a × √b" },
+      { "name": "Quotient", "formula": "√(a/b) = √a / √b" },
+      { "name": "Conjugate product", "formula": "(√a + √b)(√a - √b) = a - b" },
+      { "name": "Square of sum", "formula": "(√a + √b)² = a + b + 2√(ab)" },
+      { "name": "Square of difference", "formula": "(√a - √b)² = a + b - 2√(ab)" },
+      { "name": "Rationalising denominator", "formula": "a / (√b + √c) = a(√b - √c) / (b - c)" }
+    ]
+  },
+  "polynomials": {
+    "display": "Polynomials",
+    "emoji": "📈",
+    "formulas": [
+      { "name": "Square of sum", "formula": "(a + b)² = a² + 2ab + b²" },
+      { "name": "Square of difference", "formula": "(a - b)² = a² - 2ab + b²" },
+      { "name": "Difference of squares", "formula": "(a + b)(a - b) = a² - b²" },
+      { "name": "Cube of sum", "formula": "(a + b)³ = a³ + 3a²b + 3ab² + b³" },
+      { "name": "Cube of difference", "formula": "(a - b)³ = a³ - 3a²b + 3ab² - b³" },
+      { "name": "Sum of cubes", "formula": "a³ + b³ = (a + b)(a² - ab + b²)" },
+      { "name": "Difference of cubes", "formula": "a³ - b³ = (a - b)(a² + ab + b²)" },
+      { "name": "Factor theorem", "formula": "If P(a) = 0, then (x - a) is a factor of P(x)" },
+      { "name": "Remainder theorem", "formula": "When P(x) is divided by (x - a), remainder = P(a)" }
+    ]
+  },
+  "quadratic equations": {
+    "display": "Quadratic Equations",
+    "emoji": "📐",
+    "keywords": ["quadratic", "quadratic equations", "quadratic equation"],
+    "formulas": [
+      { "name": "Quadratic formula", "formula": "x = [-b ± √(b² - 4ac)] / 2a" },
+      { "name": "Discriminant", "formula": "Δ = b² - 4ac" },
+      { "name": "Δ > 0", "formula": "Two distinct real roots" },
+      { "name": "Δ = 0", "formula": "One repeated real root (tangent)" },
+      { "name": "Δ < 0", "formula": "No real roots" },
+      { "name": "Sum of roots", "formula": "α + β = -b/a" },
+      { "name": "Product of roots", "formula": "αβ = c/a" },
+      { "name": "Roots from sum/product", "formula": "x² - (sum)x + (product) = 0" }
+    ]
+  },
+  "quadratic functions": {
+    "display": "Quadratic Functions",
+    "emoji": "📉",
+    "keywords": ["quadratic functions", "quadratic function", "completing the square"],
+    "formulas": [
+      { "name": "Vertex form", "formula": "y = a(x - h)² + k" },
+      { "name": "Vertex coordinates", "formula": "Vertex = (h, k)" },
+      { "name": "Axis of symmetry", "formula": "x = h" },
+      { "name": "Completing the square", "formula": "ax² + bx + c = a(x + b/2a)² - (b² - 4ac)/4a" },
+      { "name": "Maximum/minimum value", "formula": "k = c - b²/4a (min when a > 0, max when a < 0)" }
+    ]
+  },
+  "inequalities": {
+    "display": "Linear Inequalities",
+    "emoji": "⚖️",
+    "keywords": ["inequalities", "inequality", "linear inequality"],
+    "formulas": [
+      { "name": "Addition/subtraction", "formula": "a < b → a + c < b + c (same for all c)" },
+      { "name": "Multiply/divide by positive", "formula": "a < b → a × c < b × c (c > 0)" },
+      { "name": "Multiply/divide by negative", "formula": "FLIP sign: a < b → a × c > b × c (c < 0)" },
+      { "name": "Compound inequality", "formula": "a < x < b → x > a AND x < b" },
+      { "name": "Graph", "formula": "Shade region. Dotted line for < or >. Solid line for ≤ or ≥" }
+    ]
+  },
+  "coordinate geometry": {
+    "display": "Coordinate Geometry",
+    "emoji": "📍",
+    "keywords": ["coordinate", "coordinate geometry", "straight line", "lines", "gradient"],
+    "formulas": [
+      { "name": "Gradient", "formula": "m = (y₂ - y₁) / (x₂ - x₁)" },
+      { "name": "Slope-intercept form", "formula": "y = mx + c" },
+      { "name": "Point-slope form", "formula": "y - y₁ = m(x - x₁)" },
+      { "name": "Distance between two points", "formula": "d = √[(x₂ - x₁)² + (y₂ - y₁)²]" },
+      { "name": "Midpoint", "formula": "M = ((x₁ + x₂)/2, (y₁ + y₂)/2)" },
+      { "name": "Parallel lines", "formula": "m₁ = m₂" },
+      { "name": "Perpendicular lines", "formula": "m₁ × m₂ = -1" },
+      { "name": "x-intercept", "formula": "Set y = 0, solve for x" },
+      { "name": "y-intercept", "formula": "Set x = 0, solve for y" },
+      { "name": "General form", "formula": "ax + by + c = 0" }
+    ]
+  },
+  "simultaneous equations": {
+    "display": "Simultaneous Equations",
+    "emoji": "🔗",
+    "keywords": ["simultaneous", "simultaneous equations"],
+    "formulas": [
+      { "name": "Substitution method", "formula": "Solve one eqn for one variable, substitute into the other" },
+      { "name": "Elimination method", "formula": "Add/subtract eqns to eliminate one variable" },
+      { "name": "Graphical method", "formula": "Plot both lines — intersection point is the solution" },
+      { "name": "Linear + Quadratic", "formula": "Substitute the linear into the quadratic, solve the resulting quadratic" }
+    ]
+  },
+  "trigonometry": {
+    "display": "Trigonometry",
+    "emoji": "📐",
+    "keywords": ["trig", "trigonometry", "trigo", "trigonometric"],
+    "formulas": [
+      { "name": "Sine", "formula": "sin θ = opposite / hypotenuse" },
+      { "name": "Cosine", "formula": "cos θ = adjacent / hypotenuse" },
+      { "name": "Tangent", "formula": "tan θ = opposite / adjacent" },
+      { "name": "Pythagorean identity", "formula": "sin²θ + cos²θ = 1" },
+      { "name": "tan identity", "formula": "tan θ = sin θ / cos θ" },
+      { "name": "Sine rule", "formula": "a / sin A = b / sin B = c / sin C = 2R" },
+      { "name": "Cosine rule (side)", "formula": "a² = b² + c² - 2bc cos A" },
+      { "name": "Cosine rule (angle)", "formula": "cos A = (b² + c² - a²) / 2bc" },
+      { "name": "Area of triangle", "formula": "Area = ½ ab sin C" },
+      { "name": "Angle of elevation", "formula": "Angle looking UP from horizontal" },
+      { "name": "Angle of depression", "formula": "Angle looking DOWN from horizontal" }
+    ]
+  },
+  "mensuration": {
+    "display": "Mensuration",
+    "emoji": "📏",
+    "keywords": ["mensuration", "area", "volume", "surface area"],
+    "formulas": [
+      { "name": "Cylinder — volume", "formula": "V = πr²h" },
+      { "name": "Cylinder — curved surface area", "formula": "CSA = 2πrh" },
+      { "name": "Cylinder — total surface area", "formula": "TSA = 2πr² + 2πrh" },
+      { "name": "Cone — volume", "formula": "V = ⅓πr²h" },
+      { "name": "Cone — curved surface area", "formula": "CSA = πrl (where l = slant height)" },
+      { "name": "Cone — total surface area", "formula": "TSA = πr² + πrl" },
+      { "name": "Sphere — volume", "formula": "V = ⁴⁄₃πr³" },
+      { "name": "Sphere — surface area", "formula": "SA = 4πr²" },
+      { "name": "Pyramid — volume", "formula": "V = ⅓ × base area × height" },
+      { "name": "Arc length", "formula": "s = rθ (θ in radians)" },
+      { "name": "Sector area", "formula": "A = ½r²θ (θ in radians)" }
+    ]
+  },
+  "congruence and similarity": {
+    "display": "Congruence & Similarity",
+    "emoji": "🔷",
+    "keywords": ["congruence", "similarity", "congruent", "similar"],
+    "formulas": [
+      { "name": "SSS (congruence)", "formula": "All three sides equal" },
+      { "name": "SAS (congruence)", "formula": "Two sides and the included angle equal" },
+      { "name": "ASA (congruence)", "formula": "Two angles and the included side equal" },
+      { "name": "RHS (congruence)", "formula": "Right angle, hypotenuse and one side equal" },
+      { "name": "Ratio of lengths (similar)", "formula": "Corresponding sides in same ratio k" },
+      { "name": "Ratio of areas (similar)", "formula": "Area ratio = k²" },
+      { "name": "Ratio of volumes (similar)", "formula": "Volume ratio = k³" },
+      { "name": "Corresponding angles", "formula": "Corresponding angles are equal in similar figures" }
+    ]
+  },
+  "vectors": {
+    "display": "Vectors in 2D",
+    "emoji": "➡️",
+    "keywords": ["vectors", "vector"],
+    "formulas": [
+      { "name": "Magnitude", "formula": "|v| = √(x² + y²)" },
+      { "name": "Unit vector", "formula": "v̂ = v / |v| = (x/|v|, y/|v|)" },
+      { "name": "Addition", "formula": "(x₁, y₁) + (x₂, y₂) = (x₁+x₂, y₁+y₂)" },
+      { "name": "Subtraction", "formula": "(x₁, y₁) - (x₂, y₂) = (x₁-x₂, y₁-y₂)" },
+      { "name": "Scalar multiplication", "formula": "k(x, y) = (kx, ky)" },
+      { "name": "Parallel vectors", "formula": "v is parallel to w ↔ v = kw (k is a scalar)" },
+      { "name": "Position vector", "formula": "OP = (x, y) where O = (0,0)" },
+      { "name": "Vector between two points", "formula": "AB = OB - OA = (x₂-x₁, y₂-y₁)" },
+      { "name": "Zero vector", "formula": "0 = (0, 0)" }
+    ]
+  },
+  "probability": {
+    "display": "Probability",
+    "emoji": "🎲",
+    "keywords": ["probability", "probabilities"],
+    "formulas": [
+      { "name": "Basic probability", "formula": "P(A) = n(A) / n(S), where S = sample space" },
+      { "name": "Complement", "formula": "P(A') = 1 - P(A)" },
+      { "name": "Union of events", "formula": "P(A ∪ B) = P(A) + P(B) - P(A ∩ B)" },
+      { "name": "Mutually exclusive", "formula": "P(A ∩ B) = 0, so P(A ∪ B) = P(A) + P(B)" },
+      { "name": "Independent events", "formula": "P(A ∩ B) = P(A) × P(B)" },
+      { "name": "Conditional probability", "formula": "P(A|B) = P(A ∩ B) / P(B)" },
+      { "name": "Expected value", "formula": "E(X) = Σ x × P(X = x)" },
+      { "name": "Probability range", "formula": "0 ≤ P(A) ≤ 1" }
+    ]
+  },
+  "statistics": {
+    "display": "Statistics",
+    "emoji": "📊",
+    "keywords": ["statistics", "statistics", "mean", "median", "mode", "standard deviation"],
+    "formulas": [
+      { "name": "Mean (ungrouped)", "formula": "x̄ = Σx / n" },
+      { "name": "Mean (grouped)", "formula": "x̄ = Σfx / Σf, where f = frequency" },
+      { "name": "Median", "formula": "Middle value when data is sorted (or avg of two middle values if n is even)" },
+      { "name": "Mode", "formula": "Most frequently occurring value" },
+      { "name": "Range", "formula": "Range = highest value - lowest value" },
+      { "name": "Standard deviation (population)", "formula": "σ = √[Σ(x - x̄)² / n]" },
+      { "name": "Standard deviation (alternate)", "formula": "σ = √[Σx²/n - (Σx/n)²]" },
+      { "name": "Variance", "formula": "σ² = Σ(x - x̄)² / n" },
+      { "name": "Interquartile range", "formula": "IQR = Q₃ - Q₁" }
+    ]
+  },
+  "sets": {
+    "display": "Sets",
+    "emoji": "🧮",
+    "keywords": ["sets", "set", "venn diagram"],
+    "formulas": [
+      { "name": "Union", "formula": "A ∪ B = elements in A OR B (or both)" },
+      { "name": "Intersection", "formula": "A ∩ B = elements in BOTH A and B" },
+      { "name": "Complement", "formula": "A' = elements NOT in A" },
+      { "name": "Subset", "formula": "A ⊆ B = all elements of A are also in B" },
+      { "name": "Universal set cardinality", "formula": "n(A ∪ B) = n(A) + n(B) - n(A ∩ B)" },
+      { "name": "Empty set", "formula": "∅ = set with no elements" },
+      { "name": "Venn diagram — two sets", "formula": "Draw two overlapping circles in a rectangle (universe)" },
+      { "name": "Not a subset", "formula": "A ⊈ B = A is NOT a subset of B" }
+    ]
+  }
+}

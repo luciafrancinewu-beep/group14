@@ -1,0 +1,26 @@
+{
+  "year": 2026,
+  "type": "JC",
+  "holidays": [
+    {
+      "name": "March Holiday",
+      "start": "2026-03-14",
+      "end": "2026-03-22"
+    },
+    {
+      "name": "June Holiday",
+      "start": "2026-05-30",
+      "end": "2026-06-28"
+    },
+    {
+      "name": "September Holiday",
+      "start": "2026-09-05",
+      "end": "2026-09-13"
+    },
+    {
+      "name": "Year-End Holiday (JC)",
+      "start": "2026-11-28",
+      "end": "2026-12-31"
+    }
+  ]
+}

@@ -1,0 +1,2548 @@
+#!/usr/bin/env python3
+"""
+JARVIS Email Auto-Processor
+Receives forwarded emails, posts to Discord, queues for JARVIS analysis.
+Dashboard at / with 5-category classification system.
+
+Architecture:
+  Incoming Email → Forwarding Service → /email-webhook endpoint
+                                      → email-queue.json (tracking)
+                                      → Categorization → Dashboard
+
+Categories: Low Concern, Mild, Critical, Spam, Scam + Pending
+"""
+
+import json
+import os
+import sys
+import urllib.request
+import urllib.error
+import email as email_parser
+import email.policy
+import re
+import html as html_mod
+import mimetypes
+import subprocess
+import uuid
+import shutil
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from datetime import datetime, timezone
+from pathlib import Path
+from email_categorizer import categorize, classify_priority, generate_one_line, generate_longer_summary, CATEGORIES
+
+# ─── CONFIG ─────────────────────────────────────────────────────────────────
+DISCORD_WEBHOOK = "https:…7635"
+HOST = "0.0.0.0"
+PORT = 8099
+QUEUE_FILE = Path("/home/ubuntu/.openclaw/workspace/email-queue.json")
+ANALYSIS_DIR = Path("/home/ubuntu/.openclaw/workspace/email-analyses")
+# ────────────────────────────────────────────────────────────────────────────
+
+ANALYSIS_DIR.mkdir(parents=True, exist_ok=True)
+
+# ─── History Archive (survives queue cleanups) ───────────────────────────────
+HISTORY_FILE = Path("/home/ubuntu/.openclaw/workspace/email-history/archive.jsonl")
+HISTORY_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+# ─── File Upload Config ──────────────────────────────────────────────────────
+UPLOAD_DIR = Path("/home/ubuntu/.openclaw/workspace/uploaded-files")
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+SUPPORTED_EXTENSIONS = {
+    # Text
+    ".txt": "text", ".log": "text", ".md": "text", ".json": "text",
+    ".csv": "text", ".yaml": "text", ".yml": "text", ".xml": "text",
+    ".html": "text", ".htm": "text",
+    # Images / Screenshots
+    ".png": "image", ".jpg": "image", ".jpeg": "image", ".gif": "image",
+    ".webp": "image", ".bmp": "image", ".svg": "image",
+    # PDF
+    ".pdf": "pdf",
+    # Audio
+    ".mp3": "audio", ".wav": "audio", ".m4a": "audio", ".ogg": "audio",
+    ".flac": "audio", ".aac": "audio", ".wma": "audio",
+    # Video
+    ".mp4": "video", ".webm": "video", ".mov": "video", ".avi": "video",
+    ".mkv": "video", ".flv": "video",
+}
+
+
+def load_queue():
+    if QUEUE_FILE.exists():
+        data = json.loads(QUEUE_FILE.read_text())
+        if isinstance(data, dict):
+            return data.get("emails", [])
+        return data
+    return []
+
+
+def save_queue(queue):
+    QUEUE_FILE.write_text(json.dumps(queue, indent=2))
+
+
+def archive_entry(entry: dict):
+    """Write a permanent archive entry that survives queue cleanups."""
+    import json as _json
+    with open(HISTORY_FILE, "a") as f:
+        f.write(_json.dumps(entry) + "\n")
+
+
+def parse_email(raw_bytes: bytes) -> dict:
+    """Parse raw email bytes into a structured dict.
+
+    Tries RFC 2822 email parser first. If that doesn't find valid
+    From/Subject headers, falls back to plain text line-by-line parsing
+    (for Make.com/webhooks that send raw text with lines like 'From: ...').
+    """
+    raw = raw_bytes.decode("utf-8", errors="replace")
+    msg = email_parser.message_from_string(raw, policy=email.policy.default)
+
+    headers = {}
+    for key in ("From", "To", "Cc", "Subject", "Date", "Reply-To",
+                 "Return-Path", "Message-ID", "DKIM-Signature", "Received"):
+        val = msg.get(key)
+        if val:
+            headers[key] = str(val)
+
+    body = ""
+    html_body = ""
+    attachments = []
+
+    # Check if email library actually found useful content
+    library_found = bool(headers.get("From") and headers.get("Subject"))
+
+    if library_found:
+        # Proper EML format — use email library
+        if msg.is_multipart():
+            for part in msg.walk():
+                ctype = part.get_content_type()
+                disposition = str(part.get("Content-Disposition", ""))
+                if "attachment" in disposition:
+                    attachments.append({
+                        "filename": part.get_filename() or "unknown",
+                        "content_type": ctype,
+                        "size": len(part.get_content() or ""),
+                    })
+                elif ctype == "text/plain" and not body:
+                    body = part.get_content() or ""
+                elif ctype == "text/html" and not html_body:
+                    html_body = part.get_content() or ""
+        else:
+            body = msg.get_content() or ""
+    else:
+        # Fallback: plain text line-by-line (Make.com / webhook format)
+        # Split lines, extract From:/Subject:/Date: from the start
+        lines = raw.split("\n")
+        body_parts = []
+        in_body = False
+
+        for line in lines:
+            stripped = line.strip()
+
+            if not in_body:
+                if stripped.startswith("From:"):
+                    val = stripped[5:].strip()
+                    # Clean up Make's weird format: '{address: "x@y.com", name: "X"}' -> just the email
+                    raw_addr_match = re.search(r'["\']?([\w.+-]+@[\w.-]+\.[\w]+)["\']?', val)
+                    if raw_addr_match:
+                        val = raw_addr_match.group(1)
+                    headers["From"] = val
+                elif stripped.startswith("Subject:"):
+                    headers["Subject"] = stripped[8:].strip()
+                elif stripped.startswith("Date:"):
+                    headers["Date"] = stripped[5:].strip()
+                elif stripped == "":
+                    in_body = True
+                else:
+                    # Check if this line is a header or already body
+                    if ":" not in stripped.split()[0] if stripped.split() else True:
+                        in_body = True
+                        body_parts.append(line)
+                    # If it looks like a header but not one we track, skip it
+            else:
+                body_parts.append(line)
+
+        # If we never hit a blank line, assume first line might be sender
+        if not headers and lines:
+            first = lines[0].strip()
+            if first and ":" not in first:
+                headers["From"] = first
+                body_parts = lines[1:] if len(lines) > 1 else []
+
+        body = "\n".join(body_parts).strip()
+
+        # Final fallback: if From doesn't look like an email, scan the raw text for one
+        from_val = headers.get("From", "")
+        if not from_val or "@" not in str(from_val):
+            email_match = re.search(r'[\w.+-]+@[\w.-]+\.[\w]{2,}', raw)
+            if email_match:
+                headers["From"] = email_match.group(0)
+
+        if "Subject" not in headers:
+            headers["Subject"] = "(no subject)"
+        if "From" not in headers:
+            headers["From"] = "unknown"
+
+    # Extract all URLs from body
+    urls = re.findall(r'https?://[^\s<>"\'\]\)]+', body)
+
+    return {
+        "headers": headers,
+        "body": body[:50000],
+        "body_html": html_body[:50000],
+        "urls": urls[:20],
+        "attachments": attachments,
+    }
+
+
+def generate_analysis_page(email_data: dict, email_id: str, category: str, summary: str, jarvis_analysis: str = None) -> Path:
+    """Generate an HTML analysis preview page for the email.
+    If jarvis_analysis is provided, embed cached JARVIS analysis (no live API call).
+    """
+    import json as _json
+    headers = email_data["headers"]
+    body = email_data["body"]
+    urls = email_data["urls"]
+
+    cat_info = {c[0]: c for c in CATEGORIES}
+    cat_id, cat_emoji, cat_name, cat_bg, cat_color = cat_info.get(category, ("pending", "\u23f3", "Pending", "rgba(245,158,11,0.15)", "#f59e0b"))
+
+    # Run on-the-fly analysis of email content
+    try:
+        from email_categorizer import detect_gibberish, categorize as cat_categorize
+        analysis_cat = cat_categorize(headers.get("Subject",""), headers.get("From",""), body, urls)
+        gibberish_score = detect_gibberish(headers.get("Subject",""), body)
+    except Exception:
+        analysis_cat = category
+        gibberish_score = 0
+
+    # Build inline analysis HTML
+    flags_html = ""
+    if gibberish_score >= 3:
+        flags_html += '<div style="border-left:3px solid #8b5cf6;padding:8px 12px;margin-bottom:8px;border-radius:4px;">'
+        flags_html += '<span style="font-weight:700;font-size:13px;">📊 Gibberish Score: ' + str(gibberish_score) + '/5</span><br>'
+        flags_html += '<span style="font-size:12px;color:var(--text-dim);">Text has gibberish/random content — classified as spam</span></div>'
+    elif gibberish_score >= 1:
+        flags_html += '<div style="border-left:3px solid #eab308;padding:8px 12px;margin-bottom:8px;border-radius:4px;">'
+        flags_html += '<span style="font-weight:700;font-size:13px;">📊 Gibberish Score: ' + str(gibberish_score) + '/5</span><br>'
+        flags_html += '<span style="font-size:12px;color:var(--text-dim);">Some unusual text patterns detected</span></div>'
+    else:
+        flags_html += '<div style="border-left:3px solid #10b981;padding:8px 12px;margin-bottom:8px;border-radius:4px;">'
+        flags_html += '<span style="font-weight:700;font-size:13px;">📊 Text Analysis: Normal</span><br>'
+        flags_html += '<span style="font-size:12px;color:var(--text-dim);">Text contains real words — no gibberish detected</span></div>'
+
+    # Verdict banner
+    if analysis_cat in ("scam", "spam", "critical"):
+        vbg = "rgba(239,68,68,0.1)"
+        vbd = "rgba(239,68,68,0.25)"
+        vico = "🚨"
+    elif analysis_cat == "mild":
+        vbg = "rgba(234,179,8,0.1)"
+        vbd = "rgba(234,179,8,0.25)"
+        vico = "⚠️"
+    else:
+        vbg = "rgba(16,185,129,0.1)"
+        vbd = "rgba(16,185,129,0.25)"
+        vico = "✅"
+    cat_name_clean = cat_name
+    vtext = vico + " Analysis: " + cat_emoji + " " + cat_name_clean
+    if cat_name_clean == "Scam":
+        vtext += '<br><span style="font-size:12px;color:var(--text-dim);">This email matches scam patterns — do not click links or reply.</span>'
+    elif cat_name_clean == "Spam":
+        vtext += '<br><span style="font-size:12px;color:var(--text-dim);">This email appears to be spam — unsolicited or gibberish content.</span>'
+    elif cat_name_clean == "Critical":
+        vtext += '<br><span style="font-size:12px;color:var(--text-dim);">This email raised security concerns — review carefully.</span>'
+    elif cat_name_clean == "Not So Much Concern" or cat_name_clean == "Low Concern":
+        vtext += '<br><span style="font-size:12px;color:var(--text-dim);">No significant concerns detected in this email.</span>'
+    elif cat_name_clean == "Pending" or cat_name_clean == "Mild":
+        vtext += '<br><span style="font-size:12px;color:var(--text-dim);">Some unusual elements — review if expected.</span>'
+    flags_html += '<div style="background:' + vbg + ';border:1px solid ' + vbd + ';border-radius:8px;padding:10px 14px;margin-top:8px;">' + vtext + '</div>'
+
+    body_preview = html_mod.escape(body[:50000])
+    urls_html = "\n".join(
+        f'<li><a href="{html_mod.escape(u)}" target="_blank" rel="noopener">{html_mod.escape(u)}</a></li>'
+        for u in urls
+    )
+
+    # Serialize email data for JS
+    def _safe_json(s):
+        """Sanitize string for safe JSON embedding in HTML."""
+        if isinstance(s, str):
+            return s.encode('utf-16be', errors='replace').decode('utf-16be').encode('utf-8', errors='replace').decode('utf-8')
+        return s
+
+    # Sanitize all text fields
+    _safe_body = _safe_json(body[:100000])
+    _safe_urls = [_safe_json(u) for u in urls]
+    _safe_headers = {k: _safe_json(v) if isinstance(v, str) else v for k, v in headers.items()}
+
+    email_json = _json.dumps({
+        "headers": _safe_headers,
+        "body": _safe_body,
+        "urls": _safe_urls,
+    }, ensure_ascii=False)
+
+    jarvis_cached_json = json.dumps(jarvis_analysis or "", ensure_ascii=False) if jarvis_analysis else "null"
+    html_page = f"""<!DOCTYPE html>
+<html lang="en" data-theme="">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARVIS — {html_mod.escape(headers.get('Subject', '(no subject)'))[:60]}</title>
+<style>
+  :root {{
+    --bg: #0a0a0f;
+    --bg-section: rgba(255,255,255,0.02);
+    --border: rgba(255,255,255,0.06);
+    --text: #e0e0e0;
+    --text-heading: #ffffff;
+    --text-dim: rgba(255,255,255,0.35);
+    --text-muted: #333333;
+    --accent: #f59e0b;
+    --pre-bg: rgba(0,0,0,0.3);
+    --pre-text: rgba(255,255,255,0.7);
+    --link-color: #ef4444;
+  }}
+  [data-theme="light"] {{
+    --bg: #f5f5f0;
+    --bg-section: #ffffff;
+    --border: rgba(0,0,0,0.08);
+    --text: #333333;
+    --text-heading: #111111;
+    --text-dim: #555555;
+    --text-muted: #333333;
+    --accent: #d97706;
+    --pre-bg: rgba(0,0,0,0.03);
+    --pre-text: #333333;
+    --link-color: #dc2626;
+  }}
+  * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+  body {{
+    font-family: system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 40px;
+    max-width: 900px;
+    margin: 0 auto;
+    transition: background 0.3s ease, color 0.3s ease;
+  }}
+  .back {{ margin-bottom: 20px; }}
+  .back a {{ color: var(--text-dim); text-decoration: none; font-size: 14px; }}
+  .back a:hover {{ color: var(--accent); }}
+  h1 {{ font-size: 26px; color: var(--text-heading); margin-bottom: 6px; }}
+  .cat-badge {{
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 6px;
+    margin-bottom: 16px;
+  }}
+  .meta {{ color: var(--text-dim); font-size: 13px; margin-bottom: 24px; }}
+  .section {{
+    background: var(--bg-section);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }}
+  .section h2 {{ font-size: 15px; color: var(--accent); margin-bottom: 12px; }}
+  .field {{ margin-bottom: 6px; font-size: 14px; }}
+  .field .label {{ color: var(--text-dim); }}
+  .field .value {{ color: var(--text); }}
+  pre {{
+    background: var(--pre-bg);
+    border-radius: 8px;
+    padding: 16px;
+    font-size: 13px;
+    line-height: 1.6;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    font-family: 'Fira Code', monospace;
+    color: var(--pre-text);
+  }}
+  ul {{ list-style: none; }}
+  li {{ padding: 6px 0; font-size: 14px; word-break: break-all; }}
+  li a {{ color: var(--link-color); }}
+</style>
+</head>
+<body>
+  <div class="back"><a href="/">\u2190 Back to Dashboard</a></div>
+  <span class="cat-badge" style="background:{cat_bg};color:{cat_color};">{cat_emoji} {cat_name}</span>
+  <h1>{html_mod.escape(headers.get('Subject', '(no subject)'))}</h1>
+  <p class="meta">{html_mod.escape(headers.get('From', 'unknown'))} \u00b7 {html_mod.escape(headers.get('Date', ''))} \u00b7 ID: {email_id}</p>
+
+  <!-- JARVIS Analysis section (populated by JS) -->
+  <div class="section" id="jarvis-analysis">
+    <h2>🤖 JARVIS Analysis</h2>
+    <div id="inline-analysis" style="margin-bottom:12px;">
+      {flags_html}
+    </div>
+    <p id="analysis-status" style="color:var(--text-dim);font-size:13px;">\u23f3 Analysing...</p>
+    <div id="analysis-result" style="font-size:14px;line-height:1.7;white-space:pre-wrap;font-family:'Fira Code',monospace;">{jarvis_analysis if jarvis_analysis else "Data shown above reflects automated categorization."}</div>
+  </div>
+
+  <div class="section">
+    <h2>\U0001f4cb Summary</h2>
+    <p style="font-size:14px;line-height:1.7;color:var(--text);">{html_mod.escape(summary)}</p>
+  </div>
+
+  <div class="section">
+    <h2>📋 Email Headers</h2>
+"""
+    for key in ("From", "To", "Subject", "Date", "Reply-To", "Return-Path"):
+        val = headers.get(key)
+        if val:
+            html_page += f'    <div class="field"><span class="label">{key}:</span> <span class="value">{html_mod.escape(val)}</span></div>\n'
+    html_page += """  </div>
+
+  <div class="section">
+    <h2>\U0001f4dd Full Body</h2>
+    <pre>""" + body_preview + """</pre>
+  </div>
+"""
+    if urls:
+        html_page += """  <div class="section">
+    <h2>\U0001f517 URLs Detected</h2>
+    <ul>
+""" + urls_html + """
+    </ul>
+  </div>
+"""
+    html_page += f"""<script>
+<script>
+// JARVIS Analysis
+const CACHED_ANALYSIS = null;
+
+const analysisStatus = document.getElementById('analysis-status');
+const analysisResult = document.getElementById('analysis-result');
+
+if (CACHED_ANALYSIS && CACHED_ANALYSIS.length > 20) {{
+  analysisStatus.textContent = '\u2705 Complete';
+  analysisStatus.style.color = '#22c55e';
+}} else if (analysisResult) {{
+  analysisStatus.textContent = '\u2139\ufe0f Note';
+  analysisResult.textContent = 'Cached analysis not available. Server-side analysis ran during ingestion - check the category badge for our assessment.';
+}}
+</script></body>
+</html>"""
+    out_path = ANALYSIS_DIR / f"{email_id}.html"
+    out_path.write_text(html_page.encode('utf-8', errors='replace').decode('utf-8'))
+    return out_path
+
+
+def call_jarvis_api(email_text: str, max_tokens: int = 2048) -> str:
+    """Call the local OpenClaw JARVIS API to analyse email for scams/phishing.
+    Returns the analysis text, or empty string on failure."""
+    import urllib.request as _ur
+    import urllib.error as _ue
+    import json as _js
+    try:
+        prompt = """You are JARVIS, a scam and phishing detection specialist.
+
+CRITICAL CONTEXT: The recipient is a STUDENT (Singapore JC). They have NO bank accounts, investments, or crypto. Academic emails about homework, grades, deadlines, and exams are NORMAL — do NOT flag them. Actual bank/money/prize/crypto/password emails are HIGHLY suspicious.
+
+Analyse this email for: sender spoofing, Reply-To mismatch, URL domain mimicry (g00gle.com, paypa1.com), URL shorteners (bit.ly), suspicious TLDs (.xyz, .top, .click), urgency/pressure tactics, generic greetings ("Dear Customer" vs name), grammar errors, credential/password/OTP requests, crypto payment asks, unsolicited invoices.
+
+Output format:
+VERDICT: HIGH / MEDIUM / LOW / CLEAR
+
+SUMMARY:
+[2-3 sentences]
+
+CONCERNS IDENTIFIED:
+- SEVERITY: specific evidence from email
+
+EMAIL INTELLIGENCE:
+- From/Reply-To/SPF analysis
+
+URL ANALYSIS:
+- Each URL with verdict
+
+PHISHING INDICATORS:
+- Specific red flags found
+
+VERDICT:
+- Clear recommendation"""
+
+        body = _js.dumps({
+            "input": email_text,
+            "instructions": prompt,
+            "model": "openclaw",
+            "max_output_tokens": max_tokens
+        }).encode()
+
+        req = _ur.Request(
+            "http://127.0.0.1:18789/v1/responses",
+            data=body,
+            headers={
+                "Content-Type": "application/json",
+                "x-openclaw-model": "openrouter/deepseek/deepseek-v4-flash"
+            }
+        )
+
+        resp = _ur.urlopen(req, timeout=60)
+        data = _js.loads(resp.read())
+
+        text_parts = []
+        for o in data.get("output", []):
+            if o.get("type") == "message":
+                for c in o.get("content", []):
+                    txt = c.get("text", "").strip()
+                    if txt:
+                        text_parts.append(txt)
+        return "\n\n".join(text_parts)
+
+    except Exception as e:
+        print(f"[JARVIS API call failed: {e}]")
+        return ""
+
+
+def build_jarvis_input(email_data: dict) -> str:
+    """Build formatted email text for JARVIS API analysis."""
+    h = email_data.get("headers", {})
+    body = email_data.get("body", "")
+    urls = email_data.get("urls", [])
+    parts = [
+        "=== CONTEXT: Recipient is a student ===",
+        "No bank accounts, investments, or cryptocurrency.",
+        "Academic emails (homework, grades, deadlines, exams) are NORMAL and not scams.",
+        "Bank/money/prize/password/crypto emails are HIGHLY suspicious.",
+        "News PDFs and school portal emails are routine.",
+        "========================================",
+        "",
+        "From: " + h.get("From", "unknown"),
+        "To: " + h.get("To", ""),
+        "Reply-To: " + h.get("Reply-To", "(not set)"),
+        "Subject: " + h.get("Subject", "(no subject)"),
+        "Date: " + h.get("Date", ""),
+        "Return-Path: " + h.get("Return-Path", "(not set)"),
+        "",
+        body,
+    ]
+    text = "\n".join(parts)
+    if urls:
+        text += "\n\nURLs in this email:\n" + "\n".join("  - " + u for u in urls[:10])
+    return text
+
+
+def extract_text_from_pdf(pdf_path: Path) -> str:
+    """Extract text from PDF using pdftotext."""
+    try:
+        result = subprocess.run(
+            ["pdftotext", str(pdf_path), "-"],
+            capture_output=True, text=True, timeout=30
+        )
+        return result.stdout.strip()[:50000]
+    except Exception as e:
+        return f"[PDF extraction error: {e}]"
+
+
+def process_upload(files: list, form_text: str = "") -> str:
+    """Process a manual file upload submission.
+    files: list of (field_name, filename, filedata_bytes)
+    Returns the submission ID.
+    """
+    submission_id = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:8]
+    sub_dir = UPLOAD_DIR / submission_id
+    sub_dir.mkdir(parents=True, exist_ok=True)
+
+    file_info_list = []
+    all_body_text = form_text
+    image_paths = []
+    file_type_flags = {"text": False, "image": False, "pdf": False, "audio": False, "video": False}
+
+    for field_name, filename, filedata in files:
+        ext = Path(filename).suffix.lower()
+        file_type = SUPPORTED_EXTENSIONS.get(ext, "unknown")
+        if file_type in file_type_flags:
+            file_type_flags[file_type] = True
+
+        # Save the file
+        safe_name = f"{uuid.uuid4().hex[:8]}{ext}"
+        file_path = sub_dir / safe_name
+        file_path.write_bytes(filedata)
+
+        file_size = len(filedata)
+
+        # Extract content based on type
+        extracted_text = ""
+        if file_type == "text":
+            try:
+                extracted_text = filedata.decode("utf-8", errors="replace")[:50000]
+            except:
+                extracted_text = "[Binary or unreadable text file]"
+            all_body_text += f"\n\n--- Content from {filename} ---\n{extracted_text}"
+
+        elif file_type == "pdf":
+            extracted_text = extract_text_from_pdf(file_path)
+            all_body_text += f"\n\n--- Content from {filename} ---\n{extracted_text}"
+
+        elif file_type == "image":
+            image_paths.append(str(file_path))
+
+        elif file_type == "audio":
+            # Extract audio metadata using ffprobe
+            try:
+                import subprocess
+                result = subprocess.run(["ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", str(file_path)],
+                    capture_output=True, text=True, timeout=30)
+                if result.returncode == 0:
+                    import json as _j2
+                    info = _j2.loads(result.stdout)
+                    fmt = info.get("format", {})
+                    duration = fmt.get("duration", "?")
+                    bitrate = fmt.get("bit_rate", "?")
+                    codec = "?"
+                    streams = info.get("streams", [])
+                    if streams:
+                        codec = streams[0].get("codec_name", "?")
+                    dur_secs = float(duration) if duration != "?" else 0
+                    dur_str = f"{int(dur_secs//60)}m {int(dur_secs%60)}s" if dur_secs else "?"
+                    extracted_text = f"[Audio: {codec}, {dur_str}, {bitrate}bps]"
+                else:
+                    extracted_text = f"[Audio file: {filename}]"
+            except:
+                extracted_text = f"[Audio file: {filename}]"
+            all_body_text += f"\n\n--- {filename} ---\n{extracted_text}"
+
+        elif file_type == "video":
+            # Extract metadata + a thumbnail frame
+            try:
+                import subprocess
+                result = subprocess.run(["ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", str(file_path)],
+                    capture_output=True, text=True, timeout=30)
+                if result.returncode == 0:
+                    import json as _j2
+                    info = _j2.loads(result.stdout)
+                    fmt = info.get("format", {})
+                    duration = fmt.get("duration", "?")
+                    bitrate = fmt.get("bit_rate", "?")
+                    streams = info.get("streams", [])
+                    vcodec = "?"
+                    resolution = "?"
+                    for s in streams:
+                        if s.get("codec_type") == "video":
+                            vcodec = s.get("codec_name", "?")
+                            width = s.get("width", 0)
+                            height = s.get("height", 0)
+                            if width and height:
+                                resolution = f"{width}x{height}"
+                            break
+                    dur_secs = float(duration) if duration != "?" else 0
+                    dur_str = f"{int(dur_secs//60)}m {int(dur_secs%60)}s" if dur_secs else "?"
+                    extracted_text = f"[Video: {vcodec}, {resolution}, {dur_str}]"
+                    # Extract a thumbnail frame for image analysis
+                    thumb_path = file_path.with_suffix(".jpg")
+                    subprocess.run(["ffmpeg", "-y", "-ss", "00:00:01", "-i", str(file_path),
+                        "-vframes", "1", "-q:v", "2", str(thumb_path)],
+                        capture_output=True, timeout=30)
+                    if thumb_path.exists() and thumb_path.stat().st_size > 1000:
+                        image_paths.append(str(thumb_path))
+                else:
+                    extracted_text = f"[Video file: {filename}]"
+            except:
+                extracted_text = f"[Video file: {filename}]"
+            all_body_text += f"\n\n--- {filename} ---\n{extracted_text}"
+
+        # Build file info
+        file_info = {
+            "filename": filename,
+            "type": file_type,
+            "size": file_size,
+            "path": str(file_path),
+            "extracted_text": extracted_text[:500] if extracted_text else "",
+        }
+        file_info_list.append(file_info)
+
+    # Build a subject/summary based on file types and user text
+    type_labels = []
+    for ft, flag in file_type_flags.items():
+        if flag:
+            type_labels.append(ft.capitalize())
+
+    type_str = " + ".join(type_labels) if type_labels else "File"
+    subject = f"Manual Upload: {type_str}"
+    sender = f"Manual Upload ({len(files)} file(s))"
+
+    # Generate description
+    desc_parts = []
+    for fi in file_info_list:
+        size_str = f"{fi['size']/1024:.1f}KB" if fi['size'] < 1024*1024 else f"{fi['size']/(1024*1024):.1f}MB"
+        desc_parts.append(f"{fi['filename']} ({fi['type']}, {size_str})")
+    file_desc = "\n".join(desc_parts)
+
+    longer_body = f"Files uploaded:\n{file_desc}\n\n"
+    if form_text:
+        longer_body += f"User notes:\n{form_text}\n\n"
+    if all_body_text and all_body_text != form_text:
+        longer_body += f"Extracted content:\n{all_body_text[:50000]}"
+
+    # Extract URLs from all extracted text for link analysis
+    upload_urls = re.findall(r'https?://[^\s<>"]+', all_body_text)
+
+    # Categorize
+    category = categorize(subject, sender, all_body_text, upload_urls)
+    if "scam" in str(file_type_flags).lower():
+        category = "scam"
+    priority = classify_priority(subject, sender, all_body_text)
+    one_line = f"Manual upload: {type_str} — {form_text[:100] if form_text else 'No description'}"
+
+    # Generate analysis page with JARVIS analysis
+    analysis_id = submission_id
+    jarvis_file_result = ""
+    try:
+        api_input = f"Uploaded files: {file_desc}\nUser notes: {form_text[:5000]}\nExtracted content: {all_body_text[:50000]}"
+        jarvis_file_result = call_jarvis_api(api_input, max_tokens=1024)
+    except:
+        pass
+    
+    generate_file_analysis_page(
+        submission_id, subject, sender, longer_body,
+        file_info_list, category, form_text, list(file_type_flags.keys()),
+        jarvis_analysis=jarvis_file_result
+    )
+    
+    # Also generate email-style analysis page for better display
+    try:
+        ed = {
+            "headers": {"From": "File Upload", "Subject": subject, "Date": "", "To": ""},
+            "body": all_body_text[:50000],
+            "urls": upload_urls,
+        }
+        generate_analysis_page(ed, submission_id, category, longer_body[:20000], jarvis_analysis=jarvis_file_result)
+    except:
+        pass
+
+    # Build queue entry
+    entry = {
+        "id": submission_id,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "source": "manual_upload",
+        "subject": subject,
+        "sender": sender,
+        "url_count": 0,
+        "category": category,
+        "priority": priority,
+        "one_line_summary": one_line,
+        "longer_summary": longer_body[:20000],
+        "body": longer_body[:10000],
+        "analysis_url": f"/analysis/{submission_id}",
+        "discord_status": "pending",
+        "jarvis_status": "pending",
+        "file_types": [ft for ft, flag in file_type_flags.items() if flag],
+        "file_count": len(files),
+        "files": file_info_list,
+    }
+
+    queue = load_queue()
+    queue.append(entry)
+    save_queue(queue)
+    archive_entry(entry)
+
+    print(f"[{submission_id}] [{category}] Manual upload: {type_str} ({len(files)} files)")
+    return submission_id
+
+
+def generate_file_analysis_page(submission_id: str, subject: str, sender: str,
+                                 body: str, file_info_list: list,
+                                 category: str, user_text: str,
+                                 file_types: list,
+                                 jarvis_analysis: str = None):
+    """Generate an analysis page for a manual file upload."""
+    cat_info = {c[0]: c for c in CATEGORIES}
+    cat_id, cat_emoji, cat_name, cat_bg, cat_color = cat_info.get(
+        category, ("pending", "⏳", "Pending", "rgba(245,158,11,0.15)", "#f59e0b")
+    )
+
+    type_icons = {"text": "📝", "image": "🖼️", "pdf": "📄", "audio": "🎵", "video": "🎬"}
+    file_rows = ""
+    for fi in file_info_list:
+        icon = type_icons.get(fi["type"], "📁")
+        size_str = f"{fi['size']/1024:.1f}KB" if fi['size'] < 1024*1024 else f"{fi['size']/(1024*1024):.1f}MB"
+        file_rows += f"""
+          <div class="file-row">
+            <span class="file-icon">{icon}</span>
+            <div class="file-info">
+              <span class="file-name">{html_mod.escape(fi['filename'])}</span>
+              <span class="file-meta">{fi['type'].capitalize()} · {size_str}</span>
+            </div>
+          </div>"""
+
+    html_page = f"""<!DOCTYPE html>
+<html lang="en" data-theme="">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARVIS — File Analysis: {html_mod.escape(subject[:60])}</title>
+<style>
+  :root {{
+    --bg: #0a0a0f;
+    --bg-section: rgba(255,255,255,0.02);
+    --border: rgba(255,255,255,0.06);
+    --text: #e0e0e0;
+    --text-heading: #ffffff;
+    --text-dim: rgba(255,255,255,0.35);
+    --text-muted: rgba(255,255,255,0.55);
+    --accent: #f59e0b;
+    --pre-bg: rgba(0,0,0,0.3);
+    --pre-text: rgba(255,255,255,0.7);
+    --file-border: rgba(255,255,255,0.04);
+  }}
+  [data-theme="light"] {{
+    --bg: #f5f5f0;
+    --bg-section: #ffffff;
+    --border: rgba(0,0,0,0.08);
+    --text: #333333;
+    --text-heading: #111111;
+    --text-dim: #555555;
+    --text-muted: #333333;
+    --accent: #d97706;
+    --pre-bg: rgba(0,0,0,0.03);
+    --pre-text: #333333;
+    --file-border: rgba(0,0,0,0.06);
+  }}
+  * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+  body {{
+    font-family: system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 40px;
+    max-width: 900px;
+    margin: 0 auto;
+    transition: background 0.3s ease, color 0.3s ease;
+  }}
+  .back {{ margin-bottom: 20px; }}
+  .back a {{ color: var(--text-dim); text-decoration: none; font-size: 14px; }}
+  .back a:hover {{ color: var(--accent); }}
+  h1 {{ font-size: 24px; color: var(--text-heading); margin-bottom: 4px; }}
+  .cat-badge {{ display: inline-block; font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 6px; margin-bottom: 16px; }}
+  .meta {{ color: var(--text-dim); font-size: 13px; margin-bottom: 24px; }}
+  .section {{ background: var(--bg-section); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px; }}
+  .section h2 {{ font-size: 15px; color: var(--accent); margin-bottom: 12px; }}
+  .section p {{ font-size: 14px; line-height: 1.7; color: var(--text-muted); }}
+  .file-row {{ display: flex; align-items: center; gap: 14px; padding: 10px 0; border-bottom: 1px solid var(--file-border); }}
+  .file-row:last-child {{ border-bottom: none; }}
+  .file-icon {{ font-size: 28px; }}
+  .file-name {{ font-size: 14px; font-weight: 600; color: var(--text-heading); }}
+  .file-meta {{ font-size: 12px; color: var(--text-dim); }}
+  pre {{ background: var(--pre-bg); border-radius: 8px; padding: 16px; font-size: 13px; line-height: 1.6; overflow-x: auto; white-space: pre-wrap; font-family: 'Fira Code', monospace; color: var(--pre-text); }}
+</style>
+<script>
+(function() {{
+  try {{ var t = localStorage.getItem('jarvis-theme'); if (t === 'light') document.documentElement.setAttribute('data-theme', 'light'); }} catch(e) {{}}
+}})();
+</script>
+</head>
+<body>
+  <div class="back"><a href="/">← Back to Dashboard</a></div>
+  <span class="cat-badge" style="background:{cat_bg};color:{cat_color};">{cat_emoji} {cat_name}</span>
+  <h1>{html_mod.escape(subject[:80])}</h1>
+  <p class="meta">{html_mod.escape(sender)} · 🆔 {submission_id}</p>
+
+  <div class="section">
+<!-- JARVIS Analysis section -->
+  <div class="section" id="jarvis-analysis">
+    <h2>🤖 JARVIS Analysis</h2>
+    <div id="analysis-result" style="font-size:14px;line-height:1.7;white-space:pre-wrap;font-family:'Fira Code',monospace;">{jarvis_analysis if jarvis_analysis else "No live analysis available. Categorization: <b>" + cat_name + "</b>."}</div>
+  </div>
+
+
+    <h2>📁 Uploaded Files</h2>
+    <h2>📁 Uploaded Files</h2>
+    {file_rows}
+  </div>
+"""
+
+    if user_text:
+        html_page += f"""
+  <div class="section">
+    <h2>📝 User Description</h2>
+    <p>{html_mod.escape(user_text[:1000])}</p>
+  </div>
+"""
+
+    if body:
+        html_page += f"""
+  <div class="section">
+    <h2>🔍 Extracted Content</h2>
+    <pre style="max-height: 400px; overflow-y: auto;">{html_mod.escape(body[:100000])}</pre>
+  <p style="font-size:12px;color:rgba(255,255,255,0.25);margin-top:8px;">Scroll for full extracted content</p>
+  </div>
+"""
+
+    html_page += """</body>
+</html>"""
+
+    out_path = ANALYSIS_DIR / f"{submission_id}.html"
+    out_path.write_text(html_page)
+
+
+UPLOAD_FORM_HTML = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARVIS — Upload Files</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: #0a0a0f;
+    color: #e0e0e0;
+    min-height: 100vh;
+    padding: 40px 20px;
+    background-image: 
+      radial-gradient(ellipse 80% 60% at 50% -20%, rgba(245,158,11,0.06) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 50% at 80% 100%, rgba(249,115,22,0.04) 0%, transparent 50%);
+  }
+  
+  .container { max-width: 680px; margin: 0 auto; }
+  
+  .back { margin-bottom: 24px; }
+  .back a { 
+    color: rgba(255,255,255,0.25); 
+    text-decoration: none; 
+    font-size: 13px;
+    transition: color 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .back a:hover { color: #f59e0b; }
+  
+  .page-header {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+  .page-header .icon {
+    font-size: 48px;
+    display: block;
+    margin-bottom: 12px;
+    animation: float 3s ease-in-out infinite;
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-6px); }
+  }
+  
+  h1 { 
+    font-size: 28px; 
+    font-weight: 800;
+    background: linear-gradient(135deg, #fbbf24, #f59e0b, #f97316); 
+    -webkit-background-clip: text; 
+    -webkit-text-fill-color: transparent; 
+    background-clip: text; 
+    margin-bottom: 8px;
+    letter-spacing: -0.5px;
+  }
+  .subtitle { 
+    color: rgba(255,255,255,0.3); 
+    font-size: 14px; 
+    line-height: 1.6;
+  }
+
+  .card {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 20px;
+    padding: 32px;
+    backdrop-filter: blur(12px);
+    transition: border-color 0.3s;
+  }
+  .card.has-files { border-color: rgba(245,158,11,0.15); }
+
+  .section-title {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: rgba(255,255,255,0.25);
+    margin-bottom: 12px;
+  }
+  .section-title .icon { margin-right: 6px; }
+
+  /* Drop zone */
+  .drop-zone {
+    border: 2px dashed rgba(255,255,255,0.08);
+    border-radius: 14px;
+    padding: 48px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-bottom: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .drop-zone::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at center, rgba(245,158,11,0.03) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .drop-zone:hover::before,
+  .drop-zone.dragover::before { opacity: 1; }
+  
+  .drop-zone:hover, .drop-zone.dragover {
+    border-color: #f59e0b;
+    transform: scale(1.01);
+  }
+  .drop-zone.dragover {
+    border-color: #22c55e;
+    background: rgba(34,197,94,0.03);
+  }
+  .drop-zone.dragover .drop-icon { transform: scale(1.1); }
+  
+  .drop-icon {
+    font-size: 48px;
+    display: block;
+    margin-bottom: 12px;
+    transition: transform 0.3s;
+  }
+  .drop-zone .text { 
+    font-size: 15px; 
+    color: rgba(255,255,255,0.5); 
+    font-weight: 500;
+  }
+  .drop-zone .hint { 
+    font-size: 12px; 
+    color: rgba(255,255,255,0.15); 
+    margin-top: 8px;
+  }
+  .drop-zone .browse-link {
+    color: #f59e0b;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .formats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 12px;
+    justify-content: center;
+  }
+  .format-tag {
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.3);
+    transition: all 0.2s;
+  }
+  .format-tag:hover {
+    background: rgba(245,158,11,0.06);
+    border-color: rgba(245,158,11,0.15);
+    color: rgba(255,255,255,0.5);
+  }
+
+  .files-input { display: none; }
+
+  /* File list */
+  .file-list { margin: 16px 0 0; }
+  .file-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    transition: background 0.2s;
+    animation: slideIn 0.25s cubic-bezier(0.4,0,0.2,1);
+    border: 1px solid transparent;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .file-item:hover { background: rgba(255,255,255,0.03); }
+  .file-item .type-icon { font-size: 18px; width: 24px; text-align: center; }
+  .file-item .name { flex: 1; color: #e0e0e0; font-weight: 500; }
+  .file-item .size { color: rgba(255,255,255,0.25); font-size: 12px; }
+  .file-item .remove {
+    color: #ef4444;
+    cursor: pointer;
+    font-size: 18px;
+    opacity: 0.3;
+    background: none;
+    border: none;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s;
+    line-height: 1;
+  }
+  .file-item .remove:hover { opacity: 1; background: rgba(239,68,68,0.1); }
+
+  .file-count {
+    font-size: 12px;
+    color: rgba(255,255,255,0.2);
+    margin: 8px 0 0;
+    text-align: right;
+  }
+
+  .divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+    margin: 24px 0;
+  }
+
+  /* Textarea */
+  .input-wrap {
+    position: relative;
+  }
+  textarea {
+    width: 100%;
+    background: rgba(0,0,0,0.25);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    padding: 14px 16px;
+    color: #e0e0e0;
+    font-size: 14px;
+    font-family: 'Inter', system-ui, sans-serif;
+    resize: vertical;
+    min-height: 90px;
+    transition: border-color 0.2s;
+  }
+  textarea:focus { 
+    outline: none; 
+    border-color: rgba(245,158,11,0.3);
+    box-shadow: 0 0 0 3px rgba(245,158,11,0.04);
+  }
+  textarea::placeholder { color: rgba(255,255,255,0.15); }
+
+  /* Submit button */
+  .submit-btn {
+    width: 100%;
+    background: linear-gradient(135deg, #f59e0b, #f97316);
+    border: none;
+    border-radius: 12px;
+    padding: 14px 24px;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4,0,0.2,1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 20px;
+    letter-spacing: 0.3px;
+  }
+  .submit-btn:hover { 
+    opacity: 0.92;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(245,158,11,0.2);
+  }
+  .submit-btn:active { transform: translateY(0); }
+  .submit-btn:disabled { 
+    opacity: 0.25; 
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  /* Loading */
+  .loading {
+    display: none;
+    text-align: center;
+    padding: 32px 20px;
+  }
+  .loading .spinner {
+    display: inline-block;
+    width: 36px;
+    height: 36px;
+    border: 3px solid rgba(245,158,11,0.1);
+    border-top-color: #f59e0b;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading p { 
+    color: rgba(255,255,255,0.25); 
+    margin-top: 14px;
+    font-size: 13px;
+  }
+  .loading .progress-bar {
+    width: 200px;
+    height: 3px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 99px;
+    margin: 16px auto 0;
+    overflow: hidden;
+  }
+  .loading .progress-bar .fill {
+    height: 100%;
+    width: 30%;
+    background: linear-gradient(90deg, #f59e0b, #f97316);
+    border-radius: 99px;
+    animation: progress 1.5s ease-in-out infinite;
+  }
+  @keyframes progress {
+    0% { transform: translateX(-100%); width: 30%; }
+    50% { width: 60%; }
+    100% { transform: translateX(400%); width: 30%; }
+  }
+
+  /* Success */
+  .success {
+    display: none;
+    text-align: center;
+    padding: 32px 20px;
+  }
+  .success .checkmark {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(16,185,129,0.05));
+    border: 2px solid rgba(16,185,129,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    margin: 0 auto 16px;
+    animation: popIn 0.4s cubic-bezier(0.4,0,0.2,1);
+  }
+  @keyframes popIn {
+    0% { transform: scale(0); opacity: 0; }
+    70% { transform: scale(1.1); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .success h3 { 
+    color: #10b981; 
+    margin: 0 0 6px;
+    font-size: 20px;
+  }
+  .success .cat-badge {
+    display: inline-block;
+    padding: 6px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    margin: 8px 0;
+  }
+  .success p.summary {
+    color: rgba(255,255,255,0.3);
+    font-size: 13px;
+    line-height: 1.6;
+    margin: 8px 0 16px;
+  }
+  .success .links {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .success .links a {
+    font-size: 13px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+  .success .links a.primary {
+    background: rgba(245,158,11,0.1);
+    color: #f59e0b;
+    border: 1px solid rgba(245,158,11,0.15);
+  }
+  .success .links a.primary:hover {
+    background: rgba(245,158,11,0.15);
+  }
+  .success .links a.secondary {
+    background: rgba(255,255,255,0.03);
+    color: rgba(255,255,255,0.4);
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .success .links a.secondary:hover {
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.6);
+  }
+
+  .responsive-hint {
+    display: none;
+    font-size: 12px;
+    color: rgba(255,255,255,0.15);
+    text-align: center;
+    margin-top: 24px;
+  }
+
+  @media (max-width: 600px) {
+    body { padding: 20px 12px; }
+    .card { padding: 20px; border-radius: 16px; }
+    .drop-zone { padding: 32px 16px; }
+    h1 { font-size: 22px; }
+    .page-header .icon { font-size: 36px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="back"><a href="/">← Back to Dashboard</a></div>
+
+  <div class="page-header">
+    <span class="icon">📤</span>
+    <h1>Upload to JARVIS</h1>
+    <p class="subtitle">Submit files, images, audio, or video for analysis and threat categorization</p>
+  </div>
+
+  <div class="card" id="uploadCard">
+    <div class="section-title"><span class="icon">📁</span> Files</div>
+    <p style="font-size:13px;color:rgba(255,255,255,0.3);margin-bottom:16px;">
+      Drop files or <strong style="color:rgba(255,255,255,0.5);">click to browse</strong>. Multiple files allowed.
+    </p>
+
+    <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+      <span class="drop-icon">📂</span>
+      <span class="text">Drag &amp; drop here, or <span class="browse-link">browse files</span></span>
+      <span class="hint">Supports text, PDF, images, audio, and video</span>
+      <div class="formats">
+        <span class="format-tag">📝 TXT / LOG / MD</span>
+        <span class="format-tag">📄 PDF</span>
+        <span class="format-tag">🖼️ PNG / JPG / GIF</span>
+        <span class="format-tag">🎵 MP3 / WAV / M4A</span>
+        <span class="format-tag">🎬 MP4 / MOV / WEBM</span>
+      </div>
+    </div>
+
+    <input type="file" class="files-input" id="fileInput" multiple
+           accept=".txt,.log,.md,.json,.csv,.yaml,.py,.js,.sh,.pdf,.png,.jpg,.jpeg,.gif,.webp,.bmp,.mp3,.wav,.m4a,.ogg,.flac,.mp4,.webm,.mov,.avi,.mkv">
+
+    <div class="file-list" id="fileList"></div>
+
+    <div class="divider"></div>
+
+    <div class="section-title"><span class="icon">📝</span> Description <span style="font-weight:400;text-transform:none;color:rgba(255,255,255,0.15);">(optional)</span></div>
+    <p style="font-size:13px;color:rgba(255,255,255,0.3);margin-bottom:12px;">
+      Tell JARVIS what to look for, or provide context about the submission.
+    </p>
+    <div class="input-wrap">
+      <textarea id="description" placeholder="e.g. 'Check this suspicious email attachment' or 'Analyze this audio recording for threats'"></textarea>
+    </div>
+
+    <div id="loadingIndicator" class="loading">
+      <div class="spinner"></div>
+      <p>Uploading and analyzing...</p>
+      <div class="progress-bar"><div class="fill"></div></div>
+    </div>
+
+    <div id="successMessage" class="success">
+      <div class="checkmark">✅</div>
+      <h3>Upload Complete!</h3>
+      <div id="resultCategory"></div>
+      <p class="summary" id="resultSummary"></p>
+      <div class="links">
+        <a href="/" class="primary" id="resultLink">View in Dashboard</a>
+        <a href="/upload" class="secondary">Upload Another</a>
+      </div>
+    </div>
+
+    <button class="submit-btn" id="submitBtn" onclick="submitFiles()">
+      <span>🚀</span>
+      <span>Submit to JARVIS</span>
+    </button>
+  </div>
+
+  <p class="responsive-hint">↕ Drag to reorder files</p>
+</div>
+
+<script>
+const fileInput = document.getElementById('fileInput');
+const fileList = document.getElementById('fileList');
+const dropZone = document.getElementById('dropZone');
+const card = document.getElementById('uploadCard');
+let selectedFiles = [];
+
+const TYPE_ICONS = {
+  text: '📝', image: '🖼️', pdf: '📄', audio: '🎵', video: '🎬', unknown: '📁'
+};
+
+function getFileType(filename) {
+  const ext = filename.split('.').pop().toLowerCase();
+  const textExts = ['txt','log','md','json','csv','yaml','yml','xml','html','htm','py','js','sh','sql'];
+  const imgExts = ['png','jpg','jpeg','gif','webp','bmp','svg'];
+  const audioExts = ['mp3','wav','m4a','ogg','flac','aac'];
+  const videoExts = ['mp4','webm','mov','avi','mkv','flv'];
+  if (ext === 'pdf') return 'pdf';
+  if (textExts.includes(ext)) return 'text';
+  if (imgExts.includes(ext)) return 'image';
+  if (audioExts.includes(ext)) return 'audio';
+  if (videoExts.includes(ext)) return 'video';
+  return 'unknown';
+}
+
+function formatSize(bytes) {
+  if (bytes < 1024) return bytes + 'B';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + 'KB';
+  return (bytes/(1024*1024)).toFixed(1) + 'MB';
+}
+
+function updateFileList() {
+  if (selectedFiles.length === 0) {
+    fileList.innerHTML = '';
+    card.classList.remove('has-files');
+    return;
+  }
+  card.classList.add('has-files');
+  fileList.innerHTML = selectedFiles.map((f, i) => {
+    const type = getFileType(f.name);
+    const icon = TYPE_ICONS[type] || '📁';
+    return '<div class="file-item" style="animation-delay:' + (i*0.05) + 's">'
+      + '<span class="type-icon">' + icon + '</span>'
+      + '<span class="name">' + f.name + '</span>'
+      + '<span class="size">' + formatSize(f.size) + '</span>'
+      + '<button class="remove" onclick="removeFile(' + i + ')">×</button>'
+      + '</div>';
+  }).join('')
+  + '<div class="file-count">' + selectedFiles.length + ' file(s) selected</div>';
+}
+
+function removeFile(idx) {
+  selectedFiles.splice(idx, 1);
+  updateFileList();
+}
+
+fileInput.addEventListener('change', (e) => {
+  for (const f of e.target.files) {
+    if (!selectedFiles.some(sf => sf.name === f.name && sf.size === f.size)) {
+      selectedFiles.push(f);
+    }
+  }
+  updateFileList();
+  fileInput.value = '';
+});
+
+dropZone.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  dropZone.classList.add('dragover');
+});
+dropZone.addEventListener('dragleave', () => {
+  dropZone.classList.remove('dragover');
+});
+dropZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  for (const f of e.dataTransfer.files) {
+    if (!selectedFiles.some(sf => sf.name === f.name && sf.size === f.size)) {
+      selectedFiles.push(f);
+    }
+  }
+  updateFileList();
+});
+
+async function submitFiles() {
+  const btn = document.getElementById('submitBtn');
+  const loading = document.getElementById('loadingIndicator');
+  const success = document.getElementById('successMessage');
+  const desc = document.getElementById('description').value;
+
+  if (selectedFiles.length === 0) {
+    alert('Please select at least one file.');
+    return;
+  }
+
+  btn.disabled = true;
+  loading.style.display = 'block';
+  success.style.display = 'none';
+
+  const formData = new FormData();
+  for (const f of selectedFiles) {
+    formData.append('files', f);
+  }
+  formData.append('description', desc);
+
+  try {
+    const resp = await fetch('/upload', { method: 'POST', body: formData });
+    const data = await resp.json();
+    loading.style.display = 'none';
+    success.style.display = 'block';
+
+    const catInfo = {
+      low_concern: { emoji: '🟢', name: 'Not So Much Concern', color: '#10b981', bg: 'rgba(16,185,129,0.12)' },
+      mild: { emoji: '🟡', name: 'Mild', color: '#eab308', bg: 'rgba(234,179,8,0.12)' },
+      critical: { emoji: '🔴', name: 'Critical', color: '#ef4444', bg: 'rgba(239,68,68,0.12)' },
+      spam: { emoji: '📣', name: 'Spam', color: '#8b5cf6', bg: 'rgba(139,92,246,0.12)' },
+      scam: { emoji: '💰', name: 'Scam', color: '#f97316', bg: 'rgba(249,115,22,0.12)' },
+      pending: { emoji: '⏳', name: 'Pending', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
+    };
+    const cat = catInfo[data.category] || catInfo.pending;
+
+    document.getElementById('resultCategory').innerHTML =
+      '<span class="cat-badge" style="background:' + cat.bg + ';color:' + cat.color + ';">'
+      + cat.emoji + ' ' + cat.name + '</span>'
+      + '<div style="font-size:13px;color:rgba(255,255,255,0.3);margin-top:6px;">📁 ' + data.files_processed + ' file(s) processed</div>';
+    document.getElementById('resultSummary').textContent =
+      'Files: ' + selectedFiles.map(f => f.name).join(', ')
+      + (desc ? ' | Description: ' + desc : '');
+    document.getElementById('resultLink').href = '/analysis/' + data.id;
+
+    selectedFiles = [];
+    updateFileList();
+    document.getElementById('description').value = '';
+  } catch(e) {
+    loading.style.display = 'none';
+    btn.disabled = false;
+    alert('Upload failed: ' + e.message);
+  }
+}
+</script>
+</body>
+</html>
+"""
+
+def fetch_url_content(url: str, timeout: int = 5) -> dict:
+    """Fetch a URL and analyze its content for phishing indicators.
+    Returns dict with title, snippet, and risk flags.
+    """
+    result = {
+        "url": url,
+        "title": "",
+        "snippet": "",
+        "has_form": False,
+        "has_login_form": False,
+        "risk_flags": [],
+        "fetch_error": None,
+    }
+    try:
+        req = urllib.request.Request(
+            url,
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "Accept": "text/html,application/xhtml+xml",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            html = resp.read(100000).decode("utf-8", errors="replace")
+
+        # Extract title
+        title_match = re.search(r'<title[^>]*>(.*?)</title>', html, re.IGNORECASE | re.DOTALL)
+        if title_match:
+            result["title"] = title_match.group(1).strip()[:100]
+
+        # Extract body text snippet
+        body_match = re.search(r'<body[^>]*>(.*?)</body>', html, re.IGNORECASE | re.DOTALL)
+        if body_match:
+            clean = re.sub(r'<[^>]+>', ' ', body_match.group(1))
+            clean = re.sub(r'\s+', ' ', clean).strip()[:500]
+            result["snippet"] = clean
+
+        # Check for forms
+        if re.search(r'<form', html, re.IGNORECASE):
+            result["has_form"] = True
+            login_keywords = ["password", "login", "signin", "sign-in", "log in",
+                             "username", "email", "ssn", "credit card", "cvv"]
+            for kw in login_keywords:
+                if kw in html.lower():
+                    result["has_login_form"] = True
+                    result["risk_flags"].append(f"Contains login form (seeks '{kw}')")
+                    break
+
+        # Check for suspicious scripts
+        script_keywords = ["keylogger", "steal", "capture", "send to", "exfil"]
+        scripts = re.findall(r'<script[^>]*>(.*?)</script>', html, re.IGNORECASE | re.DOTALL)
+        for script in scripts:
+            for kw in script_keywords:
+                if kw in script.lower():
+                    result["risk_flags"].append(f"Suspicious script keyword: '{kw}'")
+                    break
+
+    except urllib.error.HTTPError as e:
+        result["fetch_error"] = f"HTTP {e.code}"
+    except urllib.error.URLError as e:
+        result["fetch_error"] = f"Connection failed: {e.reason}"
+    except Exception as e:
+        result["fetch_error"] = str(e)[:100]
+
+    return result
+
+
+def process_email(raw_bytes: bytes, source: str = "forward") -> str:
+    """Process an incoming email: parse, categorize, queue, generate analysis page."""
+    email_data = parse_email(raw_bytes)
+    email_id = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S-%f")
+
+    subject = email_data["headers"].get("Subject", "(no subject)")
+    sender = email_data["headers"].get("From", "unknown")
+    body = email_data["body"]
+    urls = email_data["urls"]
+
+    # Fetch and analyze URLs
+    url_analyses = []
+    for u in urls[:5]:  # Limit to first 5 URLs
+        url_result = fetch_url_content(u)
+        url_analyses.append(url_result)
+        # Boost category if a URL is a known phishing page
+        if url_result.get("has_login_form"):
+            pass  # The categorizer already handles URL score
+
+    url_analysis_text = ""
+    if url_analyses:
+        url_parts = []
+        for ua in url_analyses:
+            parts = [f"🔗 {ua['url']}"]
+            if ua["title"]:
+                parts.append(f"   Page title: {ua['title']}")
+            if ua["has_login_form"]:
+                parts.append(f"   🚨 Contains login form!")
+            if ua["risk_flags"]:
+                for flag in ua["risk_flags"]:
+                    parts.append(f"   ⚠️ {flag}")
+            if ua["fetch_error"]:
+                parts.append(f"   ❌ {ua['fetch_error']}")
+            if ua["snippet"]:
+                parts.append(f"   📝 {ua['snippet'][:150]}")
+            url_parts.append("\n".join(parts))
+        url_analysis_text = "\n\n".join(url_parts)
+
+    # Categorize the email
+    category = categorize(subject, sender, body, urls)
+    priority = classify_priority(subject, sender, body)
+    one_line = generate_one_line(subject, sender, body, urls)
+    longer_summary = generate_longer_summary(subject, sender, body, urls)
+
+    # Append URL analysis to the longer summary
+    if url_analysis_text:
+        longer_summary += f"\n\n━━━ LINK ANALYSIS ━━━\n{url_analysis_text}"
+
+    # Update body to include URL analysis
+    email_data["url_analysis"] = url_analyses
+
+    # Generate analysis HTML page (basic version first)
+    generate_analysis_page(email_data, email_id, category, longer_summary)
+
+    # Try to get JARVIS analysis server-side (cached for instant display)
+    try:
+        jarvis_body = build_jarvis_input(email_data)
+        jarvis_result = call_jarvis_api(jarvis_body)
+        if jarvis_result:
+            # Regenerate with cached analysis
+            generate_analysis_page(email_data, email_id, category, longer_summary, jarvis_analysis=jarvis_result)
+    except Exception as _jae:
+        pass  # Live JS fallback will handle it
+
+    # Run scam flag detection
+    scam_flags = detect_scam_flags(subject, sender, body, urls)
+
+    # Build queue entry
+    entry = {
+        "id": email_id,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "source": source,
+        "subject": subject,
+        "sender": sender,
+        "url_count": len(urls),
+        "url_analysis": url_analyses,
+        "category": category,
+        "priority": priority,
+        "one_line_summary": one_line,
+        "longer_summary": longer_summary,
+        "scam_flags": scam_flags,
+        "body": body[:10000],
+        "analysis_url": f"/analysis/{email_id}",
+        "discord_status": "pending",
+        "jarvis_status": "pending",
+    }
+
+    # Post to Discord
+    discord_link = post_to_discord(email_data, email_id)
+    if discord_link:
+        entry["discord_status"] = "posted"
+        entry["discord_link"] = discord_link
+
+    # Save to queue
+    queue = load_queue()
+    queue.append(entry)
+    save_queue(queue)
+    archive_entry(entry)
+
+    print(f"[{email_id}] [{category}] {subject} from {sender} ({len(urls)} URLs)")
+    return email_id
+
+
+def detect_scam_flags(subject, sender, body, urls):
+    """Detect which of the 16 scam red flags are present in the email.
+    Returns a list of (flag_number, icon, name, evidence) tuples.
+    """
+    flags = []
+    text = (subject or '') + ' ' + (body or '')
+    text_lower = text.lower()
+    sender_lower = (sender or '').lower()
+
+    # 1. Urgency/pressure
+    urgency_kw = ['urgent', 'immediately', 'asap', 'act now', 'limited time', 'expires',
+                   'account suspended', 'account limited', '24 hours', 'verify now',
+                   'unauthorized login', 'suspicious activity', 'reactivate', 'deadline']
+    if any(kw in text_lower for kw in urgency_kw):
+        found = [kw for kw in urgency_kw if kw in text_lower]
+        flags.append((1, '🕒', 'Urgency/pressure', f'Keywords: {found[:3]}'))
+
+    # 2. Too-good-to-be-true
+    tgtbt_kw = ['won', 'winner', 'prize', 'lottery', 'congratulations', 'cash prize',
+                'inheritance', 'million', 'billion', 'free', 'guaranteed', 'selected']
+    if any(kw in text_lower for kw in tgtbt_kw):
+        found = [kw for kw in tgtbt_kw if kw in text_lower]
+        flags.append((2, '💰', 'Too good to be true', f'Keywords: {found[:3]}'))
+
+    # 3. Sensitive info requests
+    sensitive_kw = ['password', 'otp', '2fa', 'verification code', 'credit card',
+                    'bank account', 'login details', 'nric', 'ssn', 'pin',
+                    'atm', 'debit card', 'security code', 'cvv']
+    if any(kw in text_lower for kw in sensitive_kw):
+        found = [kw for kw in sensitive_kw if kw in text_lower]
+        flags.append((3, '🔐', 'Sensitive info request', f'Keywords: {found[:3]}'))
+
+    # 5. Impersonation
+    brand_kw = ['paypal', 'amazon', 'apple', 'microsoft', 'netflix', 'google',
+                'dbs', 'ocbc', 'uob', 'posb', 'maybank', 'hsbc', 'citibank',
+                'bank', 'singpass', 'gov', 'government', 'official']
+    if any(kw in text_lower for kw in brand_kw):
+        found = [kw for kw in brand_kw if kw in text_lower]
+        flags.append((5, '🎭', 'Impersonation', f'Claims to be from: {found[:3]}'))
+
+    # 6. Generic greeting
+    generic_kw = ['dear customer', 'dear user', 'dear sir', 'dear madam',
+                   'valued member', 'dear account holder', 'dear beneficiary']
+    if any(kw in text_lower for kw in generic_kw):
+        found = [kw for kw in generic_kw if kw in text_lower]
+        flags.append((6, '👤', 'Generic greeting', f'Says: "{found[0]}"'))
+
+    # 7. Suspicious links (URL shorteners or sketchy domains)
+    if urls:
+        suspicious_urls = []
+        for u in urls:
+            ul = u.lower()
+            if any(s in ul for s in ['bit.ly', 'tinyurl', 't.co', 'shorturl',
+                                       'rb.gy', 'tiny.cc', 'lnkd.in']):
+                suspicious_urls.append(f'{u} (shortener)')
+            elif any(tld in ul for tld in ['.xyz', '.top', '.click', '.gq', '.ml', '.tk']):
+                suspicious_urls.append(f'{u} (suspicious TLD)')
+        if suspicious_urls:
+            flags.append((7, '🔗', 'Suspicious links', f'{suspicious_urls[:2]}'))
+
+    # 11. Grammar/spelling issues
+    spammy_phrases = ['congratulation', 'you have been select', 'you are the lucky',
+                       'keep it confidential', 'do not tell anyone',
+                       'very reliable', '100%', 'guaranteed']
+    if any(kw in text_lower for kw in spammy_phrases):
+        found = [kw for kw in spammy_phrases if kw in text_lower]
+        flags.append((11, '📝', 'Grammar/spelling issues', f'Phrases: {found[:3]}'))
+
+    # 14. Crypto/alt payment asks
+    crypto_kw = ['bitcoin', 'ethereum', 'crypto', 'gift card', 'wire transfer',
+                  'western union', 'money gram', 'cashapp', 'payid']
+    if any(kw in text_lower for kw in crypto_kw):
+        found = [kw for kw in crypto_kw if kw in text_lower]
+        flags.append((14, '💸', 'Crypto/alt payment', f'Mentions: {found[:3]}'))
+
+    return flags
+
+
+def post_to_discord(email_data: dict, email_id: str) -> str | None:
+    """Post email to Discord webhook. Returns None if webhook URL is not configured."""
+    if DISCORD_WEBHOOK == "https:…7635" or "…" in DISCORD_WEBHOOK:
+        return None  # webhook not configured
+    headers = email_data["headers"]
+    body = email_data["body"]
+    urls = email_data["urls"]
+
+    body_preview = body[:1500].strip()
+    if len(body) > 1500:
+        body_preview += "\n..."
+
+    url_summary = ""
+    if urls:
+        url_lines = "\n".join(f"🔗 {u}" for u in urls[:5])
+        if len(urls) > 5:
+            url_lines += f"\n... and {len(urls)-5} more URLs"
+        url_summary = f"\n**Links found:**\n{url_lines}"
+
+    content = (
+        f"📨 **New Email — Auto-Forwarded to JARVIS**\n"
+        f"**From:** {headers.get('From', 'unknown')}\n"
+        f"**Subject:** {headers.get('Subject', '(no subject)')}\n"
+        f"**Date:** {headers.get('Date', 'unknown')}\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"```{body_preview}```"
+        f"{url_summary}\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"🤖 Auto-analyzing..."
+    )
+
+    payload = json.dumps({"content": content}).encode()
+    req = urllib.request.Request(
+        DISCORD_WEBHOOK,
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        urllib.request.urlopen(req)
+        return f"[Discord message](https://discord.com/channels/@me)"
+    except urllib.error.HTTPError as e:
+        print(f"Discord webhook error: {e.code}")
+        return None
+
+
+# ─── DASHBOARD PAGE ────────────────────────────────────────────────────────
+
+DASHBOARD_HTML = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARVIS Email Dashboard</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: #0a0a0f;
+    color: #e0e0e0;
+    min-height: 100vh;
+  }
+
+  /* Header */
+  .header {
+    background: rgba(255,255,255,0.02);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    padding: 24px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #f59e0b, #f97316);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .header .sub { color: rgba(255,255,255,0.25); font-size: 13px; }
+  .header-right { display: flex; align-items: center; gap: 12px; }
+  .last-update { font-size: 12px; color: rgba(255,255,255,0.2); }
+  .refresh-btn {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.5);
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+  }
+  .refresh-btn:hover { background: rgba(245,158,11,0.08); border-color: rgba(245,158,11,0.2); color: #f59e0b; }
+
+  /* Stats bar */
+  .stats {
+    display: flex;
+    gap: 12px;
+    padding: 20px 40px;
+    flex-wrap: wrap;
+  }
+  .stat-card {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    padding: 12px 20px;
+    min-width: 110px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+  }
+  .stat-card:hover { background: rgba(255,255,255,0.04); }
+  .stat-card.active { border-color: #f59e0b; background: rgba(245,158,11,0.04); }
+  .stat-card .num { font-size: 24px; font-weight: 700; }
+  .stat-card .label { font-size: 11px; color: rgba(255,255,255,0.3); margin-top: 2px; }
+  .stat-card.all .num { color: #e0e0e0; }
+  .stat-card.pending .num { color: #f59e0b; }
+  .stat-card.low_concern .num { color: #10b981; }
+  .stat-card.mild .num { color: #eab308; }
+  .stat-card.critical .num { color: #ef4444; }
+  .stat-card.spam .num { color: #8b5cf6; }
+  .stat-card.scam .num { color: #f97316; }
+
+  /* Email list */
+  .email-list { padding: 0 40px 40px; }
+  .empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: rgba(255,255,255,0.15);
+  }
+  .empty .emoji { font-size: 48px; margin-bottom: 12px; }
+  .empty p { font-size: 14px; }
+
+  /* Email card */
+  .email-card {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 8px;
+    transition: all 0.2s;
+    cursor: pointer;
+  }
+  .email-card:hover { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.1); }
+
+  .email-card .card-top {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .email-card .cat-tag {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 5px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .email-card .card-info { flex: 1; min-width: 0; }
+  .email-card .card-info .sender {
+    font-size: 12px;
+    color: rgba(255,255,255,0.3);
+  }
+  .email-card .card-info .subject {
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
+    margin: 2px 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .email-card .card-info .one-line {
+    font-size: 13px;
+    color: rgba(255,255,255,0.45);
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .email-card .card-time {
+    font-size: 11px;
+    color: rgba(255,255,255,0.15);
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  /* Expanded detail */
+  .email-detail {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.35s ease, opacity 0.25s ease;
+    opacity: 0;
+  }
+  .email-detail.open {
+    max-height: 600px;
+    opacity: 1;
+  }
+  .email-detail .detail-body {
+    margin-top: 12px;
+    padding: 16px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.04);
+  }
+  .email-detail .detail-body .summary-text {
+    font-size: 14px;
+    line-height: 1.7;
+    color: rgba(255,255,255,0.55);
+    white-space: pre-wrap;
+  }
+  .email-detail .detail-body .detail-meta {
+    font-size: 12px;
+    color: rgba(255,255,255,0.2);
+    margin: 8px 0;
+  }
+  .email-detail .detail-body .scam-flags {
+    margin: 10px 0;
+    padding: 10px 14px;
+    background: rgba(239,68,68,0.08);
+    border: 1px solid rgba(239,68,68,0.2);
+    border-radius: 10px;
+  }
+  .email-detail .detail-body .scam-flags-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #ef4444;
+    margin-bottom: 6px;
+  }
+  .email-detail .detail-body .scam-flag {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    padding: 3px 0;
+    color: var(--text);
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .email-detail .detail-body .scam-flag:last-child {
+    border-bottom: none;
+  }
+  .email-detail .detail-body .scam-flag .flag-icon {
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .email-detail .detail-body .scam-flag .flag-name {
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .email-detail .detail-body .scam-flag .flag-evidence {
+    color: rgba(255,255,255,0.35);
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .email-detail .detail-body .detail-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+  }
+  .email-detail .detail-body .detail-actions a {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.6);
+    padding: 7px 16px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 12px;
+    transition: all 0.2s;
+  }
+  .email-detail .detail-body .detail-actions a:hover {
+    background: rgba(245,158,11,0.08);
+    border-color: rgba(245,158,11,0.2);
+    color: #f59e0b;
+  }
+
+  .expand-icon {
+    font-size: 12px;
+    color: rgba(255,255,255,0.15);
+    margin-left: 8px;
+    transition: transform 0.2s;
+    display: inline-block;
+  }
+  .email-card.expanded .expand-icon { transform: rotate(180deg); }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    .header { padding: 16px 20px; }
+    .stats { padding: 12px 20px; gap: 8px; }
+    .stat-card { min-width: 80px; padding: 10px 14px; }
+    .stat-card .num { font-size: 18px; }
+    .email-list { padding: 0 20px 20px; }
+    .email-card { padding: 12px 14px; }
+    .email-card .card-info .subject { font-size: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>📨 JARVIS Email Dashboard</h1>
+    <div class="sub">Auto-classified into risk categories</div>
+  </div>
+  <div class="header-right">
+    <a href="/upload" style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2);color:#f59e0b;padding:6px 14px;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600;">📤 Upload</a>
+    <span class="last-update" id="lastUpdate">--</span>
+    <button class="refresh-btn" onclick="refreshData()">↻ Refresh</button>
+  </div>
+</div>
+
+<!-- Category filter tabs -->
+<div class="stats" id="statsBar">
+  <div class="stat-card all active" data-filter="all" onclick="filterEmails('all')">
+    <div class="num" id="countAll">0</div>
+    <div class="label">All</div>
+  </div>
+  <div class="stat-card low_concern" data-filter="low_concern" onclick="filterEmails('low_concern')">
+    <div class="num" id="countLowConcern">0</div>
+    <div class="label">🟢 Low Concern</div>
+  </div>
+  <div class="stat-card mild" data-filter="mild" onclick="filterEmails('mild')">
+    <div class="num" id="countMild">0</div>
+    <div class="label">🟡 Mild</div>
+  </div>
+  <div class="stat-card critical" data-filter="critical" onclick="filterEmails('critical')">
+    <div class="num" id="countCritical">0</div>
+    <div class="label">🔴 Critical</div>
+  </div>
+  <div class="stat-card spam" data-filter="spam" onclick="filterEmails('spam')">
+    <div class="num" id="countSpam">0</div>
+    <div class="label">📣 Spam</div>
+  </div>
+  <div class="stat-card scam" data-filter="scam" onclick="filterEmails('scam')">
+    <div class="num" id="countScam">0</div>
+    <div class="label">💰 Scam</div>
+  </div>
+  <div class="stat-card pending" data-filter="pending" onclick="filterEmails('pending')">
+    <div class="num" id="countPending">0</div>
+    <div class="label">⏳ Pending</div>
+  </div>
+</div>
+
+<div class="email-list" id="emailList">
+  <div class="empty">
+    <div class="emoji">📭</div>
+    <p>No emails processed yet.<br>Waiting for incoming emails...</p>
+  </div>
+</div>
+
+<script>
+// Category config
+const CATEGORIES = {
+  pending:    { emoji: "⏳", name: "Pending",   bg: "rgba(245,158,11,0.15)", color: "#f59e0b" },
+  low_concern:{ emoji: "🟢", name: "Low Concern",bg: "rgba(16,185,129,0.15)", color: "#10b981" },
+  mild:       { emoji: "🟡", name: "Mild",      bg: "rgba(234,179,8,0.15)",  color: "#eab308" },
+  critical:   { emoji: "🔴", name: "Critical",  bg: "rgba(239,68,68,0.15)",  color: "#ef4444" },
+  spam:       { emoji: "📣", name: "Spam",      bg: "rgba(139,92,246,0.15)", color: "#8b5cf6" },
+  scam:       { emoji: "💰", name: "Scam",      bg: "rgba(249,115,22,0.15)", color: "#f97316" },
+};
+
+let currentFilter = "all";
+let allEmails = [];
+
+function escapeHtml(text) {
+  const d = document.createElement('div');
+  d.textContent = text;
+  return d.innerHTML;
+}
+
+function timeAgo(iso) {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return mins + "m ago";
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return hrs + "h " + (mins % 60) + "m ago";
+  return new Date(iso).toLocaleDateString();
+}
+
+function renderEmails(emails) {
+  const container = document.getElementById('emailList');
+  const filtered = currentFilter === 'all' ? emails : emails.filter(e => e.category === currentFilter);
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<div class="empty"><div class="emoji">📭</div><p>No emails in this category.</p></div>';
+    return;
+  }
+
+  // Show reverse chronological order
+  const sorted = [...filtered].reverse();
+
+  container.innerHTML = sorted.map((e, idx) => {
+    const cat = CATEGORIES[e.category] || CATEGORIES.pending;
+    const timeStr = timeAgo(e.timestamp);
+    const oneLine = escapeHtml(e.one_line_summary || e.subject);
+    const longer = escapeHtml(e.longer_summary || "No details available.");
+    const sender = escapeHtml(e.sender || "unknown");
+    const subject = escapeHtml(e.subject || "(no subject)");
+    const eid = escapeHtml(e.id);
+
+    // Scam flags rendering
+    let scamFlagsHtml = '';
+    if (e.scam_flags && e.scam_flags.length > 0) {
+      scamFlagsHtml = '<div class="scam-flags"><div class="scam-flags-title">🚩 Scam Red Flags Detected (' + e.scam_flags.length + ')</div>' +
+        e.scam_flags.map(f => {
+          return '<div class="scam-flag"><span class="flag-icon">' + f[1] + '</span><span class="flag-name">' + f[2] + '</span><span class="flag-evidence">' + escapeHtml(String(f[3])) + '</span></div>';
+        }).join('') + '</div>';
+    }
+
+    return `
+      <div class="email-card" data-category="${e.category}" onclick="toggleDetail('${eid}')">
+        <div class="card-top">
+          <span class="cat-tag" style="background:${cat.bg};color:${cat.color};">${cat.emoji} ${cat.name}</span>
+          <div class="card-info">
+            <div class="sender">${sender}</div>
+            <div class="subject">${subject}</div>
+            <div class="one-line">${oneLine}</div>
+          </div>
+          <div class="card-time">${timeStr}</div>
+        </div>
+        <div class="email-detail" id="detail-${eid}">
+          <div class="detail-body">
+            <div class="detail-meta">📧 ${sender} · 🔗 ${e.url_count || 0} links · 🆔 ${eid.slice(0,15)}${e.file_types ? ' · ' + e.file_types.map(t => ({text:'📝',image:'🖼️',pdf:'📄',audio:'🎵',video:'🎬'})[t] || '📁').join(' ') : ''}</div>
+            ${scamFlagsHtml}
+            <div class="summary-text">${longer}</div>
+            <div class="detail-actions">
+              <a href="/analysis/${eid}" target="_blank">🔍 Full Analysis</a>
+              <a href="#" onclick="event.stopPropagation();filterEmails('${e.category}')">📂 View Similar</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function toggleDetail(id) {
+  const el = document.getElementById('detail-' + id);
+  const card = el.closest('.email-card');
+  if (!el) return;
+  el.classList.toggle('open');
+  card.classList.toggle('expanded');
+}
+
+function updateStats(emails) {
+  const counts = { all: emails.length };
+  for (const e of emails) {
+    counts[e.category] = (counts[e.category] || 0) + 1;
+  }
+  document.getElementById('countAll').textContent = counts.all || 0;
+  document.getElementById('countLowConcern').textContent = counts.low_concern || 0;
+  document.getElementById('countMild').textContent = counts.mild || 0;
+  document.getElementById('countCritical').textContent = counts.critical || 0;
+  document.getElementById('countSpam').textContent = counts.spam || 0;
+  document.getElementById('countScam').textContent = counts.scam || 0;
+  document.getElementById('countPending').textContent = counts.pending || 0;
+}
+
+function filterEmails(filter) {
+  currentFilter = filter;
+  // Update active state on stat cards
+  document.querySelectorAll('.stat-card').forEach(el => {
+    el.classList.toggle('active', el.dataset.filter === filter);
+  });
+  renderEmails(allEmails);
+}
+
+async function refreshData() {
+  document.getElementById('lastUpdate').textContent = "⟳ loading...";
+  try {
+    const resp = await fetch('/api/emails');
+    const data = await resp.json();
+    allEmails = data.emails || [];
+    updateStats(allEmails);
+    renderEmails(allEmails);
+    document.getElementById('lastUpdate').textContent = "Updated " + new Date().toLocaleTimeString();
+  } catch(e) {
+    document.getElementById('lastUpdate').textContent = "⚠️ Error loading";
+  }
+}
+
+// Auto-refresh every 30 seconds
+setInterval(refreshData, 30000);
+refreshData();
+</script>
+</body>
+</html>
+"""
+
+
+# ─── HTTP Handler ──────────────────────────────────────────────────────────
+
+class EmailWebhookHandler(BaseHTTPRequestHandler):
+    def do_POST(self):
+        content_len = int(self.headers.get("Content-Length", 0))
+
+        if self.path == "/email-webhook":
+            raw = self.rfile.read(content_len)
+            email_id = process_email(raw)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            resp = json.dumps({
+                "status": "ok",
+                "email_id": email_id,
+                "analysis_url": f"/analysis/{email_id}",
+            })
+            self.wfile.write(resp.encode())
+
+        elif self.path == "/upload":
+            # Parse multipart form data
+            content_type = self.headers.get("Content-Type", "")
+            boundary = None
+            if "boundary=" in content_type:
+                boundary = content_type.split("boundary=")[1].split(";")[0].strip()
+                if boundary.startswith('"'):
+                    boundary = boundary[1:]
+                if boundary.endswith('"'):
+                    boundary = boundary[:-1]
+
+            if not boundary:
+                self.send_response(400)
+                self.end_headers()
+                self.wfile.write(b'{"error": "missing boundary"}')
+                return
+
+            raw = self.rfile.read(content_len)
+
+            # Parse multipart manually
+            files = []
+            form_text = ""
+            parts = raw.split(f"--{boundary}".encode())
+
+            for part in parts:
+                if b"Content-Disposition" not in part:
+                    continue
+
+                # Extract headers and body
+                header_end = part.find(b"\r\n\r\n")
+                if header_end == -1:
+                    continue
+
+                header_section = part[:header_end].decode("utf-8", errors="replace")
+                body_data = part[header_end + 4:]  # Skip \r\n\r\n
+
+                # Remove trailing boundary markers
+                if body_data.endswith(b"\r\n"):
+                    body_data = body_data[:-2]
+                if body_data.endswith(b"--"):
+                    body_data = body_data[:-2]
+
+                # Check if it's a file or description
+                if 'name="files"' in header_section:
+                    # Extract filename
+                    filename = ""
+                    if 'filename="' in header_section:
+                        filename = header_section.split('filename="')[1].split('"')[0]
+                    if filename:
+                        files.append(("files", filename, body_data))
+
+                elif 'name="description"' in header_section:
+                    form_text = body_data.decode("utf-8", errors="replace").strip()
+
+            if not files:
+                self.send_response(400)
+                self.end_headers()
+                self.wfile.write(b'{"error": "no files uploaded"}')
+                return
+
+            # Process upload
+            submission_id = process_upload(files, form_text)
+            # Get category from the queue entry
+            queue_data = json.loads(QUEUE_FILE.read_text())
+            submit_cat = "pending"
+            for qe in queue_data:
+                if qe.get("id") == submission_id:
+                    submit_cat = qe.get("category", "pending")
+                    break
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            CAT_BG = {
+                "low_concern": "rgba(16,185,129,0.15)",
+                "mild": "rgba(234,179,8,0.15)",
+                "critical": "rgba(239,68,68,0.15)",
+                "spam": "rgba(139,92,246,0.15)",
+                "scam": "rgba(249,115,22,0.15)",
+                "pending": "rgba(245,158,11,0.15)",
+            }
+            resp = json.dumps({
+                "status": "ok",
+                "id": submission_id,
+                "category": submit_cat,
+                "bg": CAT_BG.get(submit_cat, "rgba(245,158,11,0.15)"),
+                "analysis_url": f"/analysis/{submission_id}",
+                "files_processed": len(files),
+            })
+            self.wfile.write(resp.encode())
+
+        else:
+            self.send_response(404)
+            self.end_headers()
+            self.wfile.write(b'{"error": "not found"}')
+
+    def do_GET(self):
+        if self.path == "/email-webhook":
+            # Make.com and other services GET-test webhook URLs to validate them
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"status": "webhook_ready"}).encode())
+
+        elif self.path.startswith("/analysis/"):
+            email_id = self.path.split("/analysis/")[-1]
+            analysis_file = ANALYSIS_DIR / f"{email_id}.html"
+            if analysis_file.exists() and analysis_file.stat().st_size > 50:
+                page = analysis_file.read_text()
+                # Inject theme script if not already present
+                if 'jarvis-theme' not in page.split('</head>')[0]:
+                    theme_script = '<script>\n(function() { try { var t = localStorage.getItem(\'jarvis-theme\'); if (t === \'light\') document.documentElement.setAttribute(\'data-theme\', \'light\'); } catch(e) {} })();\n</script>'
+                    page = page.replace('</head>', theme_script + '\n</head>', 1)
+                # Inject JARVIS auto-analysis JS if not already present
+                if 'JARVIS Auto-Analysis' not in page:
+                    # Look up email data from history
+                    email_data_text = '{}'
+                    email_data_obj = {}
+                    try:
+                        with open(HISTORY_FILE) as _hf:
+                            for _hl in _hf:
+                                if not _hl.strip(): continue
+                                _hd = json.loads(_hl)
+                                if _hd.get('id') == email_id:
+                                    email_data_obj = _hd
+                                    email_data_text = json.dumps({
+                                        "headers": {
+                                            "From": _hd.get('sender', 'unknown'),
+                                            "Subject": _hd.get('subject', '(no subject)'),
+                                            "Date": _hd.get('timestamp', ''),
+                                        },
+                                        "body": (_hd.get('body', '') or _hd.get('raw_body', '') or '')[:100000],
+                                        "urls": _hd.get('urls', []) or [],
+                                    }, ensure_ascii=False)
+                                    break
+                    except:
+                        pass
+                    # Build analysis JS
+                    analysis_js = f'''<script>
+// JARVIS Analysis (static - cached version shown)
+  const analysisStatus = document.getElementById('analysis-status');
+  const analysisResult = document.getElementById('analysis-result');
+  if (analysisStatus) analysisStatus.textContent = '\u2705 Complete';
+  if (analysisResult) analysisResult.textContent = 'Analysis loaded from server-side categorization.';'''
+                    page = page.replace('</body>', analysis_js + '</body>')
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html")
+                self.end_headers()
+                self.wfile.write(page.encode('utf-8'))
+            else:
+                # Try to generate analysis from history on the fly
+                analysis_gen = False
+                try:
+                    with open(HISTORY_FILE) as _hf:
+                        for _hl in _hf:
+                            if not _hl.strip(): continue
+                            _hd = json.loads(_hl)
+                            if _hd.get('id') == email_id:
+                                _ed = {
+                                    "headers": {
+                                        "From": _hd.get('sender', 'unknown'),
+                                        "Subject": _hd.get('subject', '(no subject)'),
+                                        "Date": _hd.get('timestamp', ''),
+                                        "To": _hd.get('recipient', ''),
+                                    },
+                                    "body": (_hd.get('body', '') or _hd.get('raw_body', '') or ''),
+                                    "urls": _hd.get('urls', []) or [],
+                                }
+                                _cat = _hd.get('category', 'pending')
+                                _sum = _hd.get('longer_summary', _hd.get('one_line_summary', ''))
+                                generate_analysis_page(_ed, email_id, _cat, _sum)
+                                analysis_gen = True
+                                break
+                except:
+                    pass
+                if analysis_gen:
+                    # Redirect to the newly generated page
+                    self.send_response(302)
+                    self.send_header("Location", f"/analysis/{email_id}")
+                    self.end_headers()
+                else:
+                    self.send_response(404)
+                    self.end_headers()
+                    self.wfile.write(b"<h1>Analysis not found</h1>")
+
+        elif self.path == "/api/emails":
+            queue = load_queue()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(json.dumps({"emails": queue}).encode())
+
+        elif self.path == "/api/stats":
+            queue = load_queue()
+            counts = {"total": len(queue)}
+            for e in queue:
+                cat = e.get("category", "pending")
+                counts[cat] = counts.get(cat, 0) + 1
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(counts).encode())
+
+        elif self.path == "/api/history":
+            entries = []
+            if HISTORY_FILE.exists():
+                with open(HISTORY_FILE) as f:
+                    for line in f:
+                        line = line.strip()
+                        if line:
+                            try:
+                                entries.append(json.loads(line))
+                            except:
+                                pass
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(json.dumps({"entries": entries}).encode())
+
+        elif self.path == "/upload":
+            upload_file = Path(__file__).parent / "upload.html"
+            if upload_file.exists():
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html")
+                self.end_headers()
+                self.wfile.write(upload_file.read_bytes())
+            else:
+                self.send_response(500)
+                self.end_headers()
+                self.wfile.write(b"Upload page not found")
+
+        elif self.path == "/health":
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain")
+            self.end_headers()
+            self.wfile.write(b"JARVIS Email Processor OK")
+
+        else:
+            # Serve the dashboard from file or fallback to embedded
+            dash_file = Path(__file__).parent / "dashboard.html"
+            if dash_file.exists():
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html")
+                self.end_headers()
+                self.wfile.write(dash_file.read_bytes())
+            else:
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html")
+                self.end_headers()
+                self.wfile.write(DASHBOARD_HTML.encode())
+
+    def log_message(self, fmt, *args):
+        print(f"[HTTP] {fmt % args}")
+
+
+# ─── Run ───────────────────────────────────────────────────────────────────
+
+def run_server():
+    server = HTTPServer((HOST, PORT), EmailWebhookHandler)
+    print(f"🧠 JARVIS Email Processor running on http://{HOST}:{PORT}")
+    print(f"📊 Dashboard:        http://localhost:{PORT}/")
+    print(f"📨 Webhook:          POST http://localhost:{PORT}/email-webhook")
+    print(f"📡 API:              /api/emails, /api/stats")
+    print(f"📤 Upload page:      /upload")
+    print(f"🔍 Analyses:         /analysis/[id]")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\nShutting down...")
+        server.shutdown()
+
+
+if __name__ == "__main__":
+    if "--server" in sys.argv:
+        run_server()
+    elif not sys.stdin.isatty():
+        raw = sys.stdin.buffer.read()
+        if raw.strip():
+            process_email(raw)
+        else:
+            print("No input received on stdin.")
+    else:
+        print("Usage:")
+        print("  # Run HTTP server:")
+        print(f"    python3 email-processor.py --server")
+        print("  # Pipe email:")
+        print("    cat email.eml | python3 email-processor.py")

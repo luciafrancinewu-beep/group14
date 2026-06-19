@@ -1,0 +1,151 @@
+# JARVIS Presentation — Slide Script
+
+A full spoken script for each slide of the JARVIS presentation, designed for voiceover or live narration.
+
+---
+
+## SLIDE 1: Title
+
+A dramatic entrance shot of Tony Stark in his workshop, blueprints on holographic displays.
+
+**NARRATOR:** In a world of information overload, one system rises above the noise.
+
+[TITLE CARD: J.A.R.V.I.S.]
+[Subtitle: Just Another Rather Very Intelligent System]
+[Tagline: Crisis Information Triage — Stark Industries]
+
+**NARRATOR:** Just Another Rather Very Intelligent System. Version 2.
+Built by Tony Stark. Powered by OpenClaw. Deployed by Group14.
+
+A system that doesn't just process information.
+It understands it.
+It triages it.
+It tells you what matters — and what can wait.
+
+[Fade to black]
+
+---
+
+## SLIDE 2: What is JARVIS?
+
+**NARRATOR:** JARVIS is a second-generation intelligence triage operator, purpose-built for the defence and security sector.
+
+It ingests any uploaded content — text, logs, CSV files, JSON, images, PDFs, or source code — and produces structured, severity-rated intelligence reports.
+
+**Key capabilities:**
+
+**One — Unlimited Input.** Whether it's a single log file or a batch of documents, JARVIS can handle it. Multi-file triage is a core feature.
+
+**Two — Advanced Analysis.** Threats, anomalies, errors, patterns. JARVIS correlates findings across multiple files to build a complete picture.
+
+**Three — Dynamic Triage.** Every finding is rated HIGH, MEDIUM, LOW, or CLEAR, with confidence scoring and automated escalation for critical items.
+
+---
+
+## SLIDE 3: Enhanced Capabilities
+
+**NARRATOR:** JARVIS v2 comes with significant upgrades across four core areas.
+
+**Text and Document Analysis** — Parse logs, reports, and emails. New in v2: multi-document cross-referencing and timeline stitching.
+
+**Visual Intelligence** — Image analysis for content recognition and anomaly detection. New: enhanced OCR and scene analysis.
+
+**Data File Parsing** — Process CSV files and structured data. New: regression analysis, anomaly clustering, and predictive flagging.
+
+**Code Security Review** — Identify vulnerabilities, hardcoded secrets, and injection risks. New: dependency chain analysis.
+
+Each of these capabilities feeds into the central triage engine, ensuring nothing is missed.
+
+---
+
+## SLIDE 4: Stark Processing Loop
+
+**NARRATOR:** JARVIS operates on a six-step processing loop, inspired by Stark Industries' own operational protocols.
+
+**Step one — INGEST.** Files, images, text, and data arrive via the JARVIS command interface.
+
+**Step two — ANALYZE.** The system performs security analysis, anomaly detection, and cross-file correlation.
+
+**Step three — RATE.** Each finding is assigned a severity level with supporting evidence and a confidence score.
+
+**Step four — REPORT.** A formatted triage report is produced, containing a summary, key concerns, assessment, and verdict.
+
+**Step five — ARCHIVE.** Reports are logged to the history system for future reference and trend analysis.
+
+**Step six — ESCALATE.** High-severity findings trigger automatic notifications to configured channels.
+
+This loop runs continuously, processing incoming data with nanotech precision.
+
+---
+
+## SLIDE 5: Severity Rating System
+
+**NARRATOR:** JARVIS uses a four-tier severity rating system to classify every finding.
+
+**HIGH** — Immediate action required. Active threats, breaches, or critical failures trigger automatic notifications. Red alert.
+
+**MEDIUM** — Needs attention. Potential risks or developing situations that warrant investigation. Amber flag.
+
+**LOW** — Monitor only. Informational items or minor concerns that should be tracked but don't require immediate action.
+
+**CLEAR** — All clear. No concerns detected. Within expected parameters.
+
+Every report MUST flag what needs attention. No ambiguity. No grey areas.
+
+If it matters, JARVIS tells you. If it doesn't, JARVIS tells you that too.
+
+---
+
+## SLIDE 6: Live Demo
+
+**NARRATOR:** Let's see JARVIS in action.
+
+A user types: *"jarvis, check these server logs for anything concerning."*
+
+They attach a CSV file containing log entries.
+
+The log shows: `14:02:03, AUTH_FAIL, admin, 203.0.113.50`
+
+JARVIS processes this and returns:
+
+**TRIAGE REPORT — File: server_logs.csv**
+
+**HIGH severity** — Root login from external IP 203.0.113.50. Direct root access via SSH detected. Confidence: 96%.
+
+**MEDIUM severity** — Authentication failures from the same IP address, three attempts. Possible brute-force precursor. Confidence: 78%.
+
+Clear, actionable intelligence in seconds.
+
+---
+
+## SLIDE 7: Architecture & Integration
+
+**NARRATOR:** The JARVIS system follows a clean architectural flow:
+
+The **User** interacts via Discord or WebChat, sending commands through the `jarvis`, `crisis`, or `triage` prefixes.
+
+**Navi**, the routing agent, detects the prefix and spawns JARVIS as a sub-agent.
+
+**JARVIS** executes the triage loop, analyzing the provided data.
+
+The result is a structured triage report delivered back to the user. Reports are also logged to the history system.
+
+Key integration points include file attachments via `sessions_spawn`, image analysis via the image tool, and automatic return to Navi mode after triage completes.
+
+No friction. No manual steps. Just intelligence, on demand.
+
+---
+
+## SLIDE 8: Thank You
+
+**NARRATOR:** Thank you.
+
+Stay safe. Stay sharp.
+
+J.A.R.V.I.S. is always watching. Always ready.
+
+Powered by OpenClaw. Built by Group14.
+
+*"I am Iron Man."* — Tony Stark
+
+[End of presentation]

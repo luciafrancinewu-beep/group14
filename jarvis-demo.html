@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARVIS — Demo Walkthrough</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a0f;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    color: #e0e0e0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+  }
+
+  .container {
+    max-width: 840px;
+    width: 100%;
+  }
+
+  h1 {
+    font-size: 40px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #f59e0b, #f97316);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 8px;
+    text-align: center;
+  }
+
+  .subtitle {
+    text-align: center;
+    color: rgba(255,255,255,0.35);
+    font-size: 15px;
+    margin-bottom: 40px;
+  }
+
+  .scene {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 16px;
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+
+  .scene-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 20px;
+    background: rgba(255,255,255,0.03);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.5);
+  }
+  .scene-header .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+  }
+  .scene-header .dot.red { background: #ef4444; }
+  .scene-header .dot.amber { background: #f59e0b; }
+  .scene-header .dot.green { background: #10b981; }
+
+  .terminal {
+    font-family: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.8;
+    padding: 20px 24px;
+    overflow-x: auto;
+  }
+
+  .line { min-height: 1.8em; overflow: hidden; white-space: pre-wrap; word-break: break-all; }
+
+  @keyframes type {
+    from { width: 0; }
+    to { width: 100%; }
+  }
+
+  .typewriter {
+    display: inline-block;
+    overflow: hidden;
+    white-space: pre;
+    animation: type 0.8s steps(40, end) forwards;
+    width: 0;
+    vertical-align: bottom;
+  }
+
+  .cursor::after {
+    content: '▊';
+    animation: blink 0.8s step-end infinite;
+    color: #f59e0b;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .fade-in {
+    animation: fadeIn 0.5s ease forwards;
+    opacity: 0;
+  }
+
+  .d1 { animation-delay: 1.5s; }
+  .d2 { animation-delay: 3.0s; }
+  .d3 { animation-delay: 4.5s; }
+  .d4 { animation-delay: 5.5s; }
+  .d5 { animation-delay: 7.0s; }
+
+  .hl-amber { color: #f59e0b; }
+  .hl-red { color: #ef4444; }
+  .hl-green { color: #10b981; }
+  .hl-blue { color: #3b82f6; }
+  .hl-gray { color: rgba(255,255,255,0.3); }
+  .hl-white { color: #e0e0e0; }
+  .hl-purple { color: #a78bfa; }
+  .hl-dim { color: rgba(255,255,255,0.4); }
+
+  .divider {
+    border: none;
+    border-top: 1px solid rgba(255,255,255,0.04);
+    margin: 12px 0;
+  }
+
+  .tag {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+    margin-right: 6px;
+  }
+  .tag-high { background: rgba(239,68,68,0.15); color: #ef4444; }
+  .tag-medium { background: rgba(245,158,11,0.15); color: #f59e0b; }
+  .tag-low { background: rgba(59,130,246,0.15); color: #3b82f6; }
+
+  .banner {
+    text-align: center;
+    padding: 16px;
+    background: rgba(245,158,11,0.06);
+    border: 1px solid rgba(245,158,11,0.12);
+    border-radius: 12px;
+    font-size: 14px;
+    color: #f59e0b;
+    margin: 24px 0;
+  }
+
+  .controls {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 20px;
+  }
+  .controls button {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: #e0e0e0;
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .controls button:hover {
+    background: rgba(245,158,11,0.08);
+    border-color: rgba(245,158,11,0.2);
+    color: #f59e0b;
+  }
+
+  .step-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: rgba(255,255,255,0.2);
+    margin-bottom: 6px;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>🎬 JARVIS Demo</h1>
+  <p class="subtitle">Crisis Information Triage — Live Walkthrough</p>
+
+  <!-- Scene 1: User sends command -->
+  <div class="scene">
+    <div class="scene-header">
+      <span class="dot green"></span>
+      <span>STEP 1 — User Input</span>
+    </div>
+    <div class="terminal">
+      <div class="line"><span class="hl-gray">$</span> <span class="cursor"><span class="typewriter" style="animation-duration:1.5s;">jarvis Check these server logs for anything concerning</span></span></div>
+      <div class="line" style="margin-top: 8px;">&nbsp;</div>
+      <div class="line fade-in d1"><span class="hl-gray">📎 Attached: server_logs.csv</span></div>
+      <div class="line fade-in d1"><span class="hl-gray">📎 Attached: incident_photo.jpg</span></div>
+      <div class="line" style="margin-top: 12px;">&nbsp;</div>
+      <div class="line fade-in d2"><span class="hl-amber">⟳ JARVIS</span><span class="hl-dim"> processing 2 files...</span></div>
+      <div class="line fade-in d2" style="margin-top: 4px;">
+        <span class="hl-dim">┣━</span> <span class="hl-white">server_logs.csv</span> <span class="hl-gray">(text/csv) ✅ parsed</span>
+      </div>
+      <div class="line fade-in d2">
+        <span class="hl-dim">┗━</span> <span class="hl-white">incident_photo.jpg</span> <span class="hl-gray">(image/jpeg) 🔍 analyzing...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scene 2: Analysis in progress -->
+  <div class="scene">
+    <div class="scene-header">
+      <span class="dot amber"></span>
+      <span>STEP 2 — Analysis Engine</span>
+    </div>
+    <div class="terminal">
+      <div class="line fade-in d2"><span class="hl-blue">[ANALYZE]</span> <span class="hl-dim">Scanning server_logs.csv (142 rows)</span></div>
+      <div class="line fade-in d3"><span class="hl-blue">[ANALYZE]</span> <span class="hl-white">Extracting login events...</span></div>
+      <div class="line fade-in d3"><span class="hl-blue">[ANALYZE]</span> <span class="hl-white">Correlating IP addresses...</span></div>
+      <div class="line fade-in d3"><span class="hl-blue">[ANALYZE]</span> <span class="hl-white">Checking auth failure rate...</span></div>
+      <div class="line" style="margin-top: 8px;">&nbsp;</div>
+      <div class="line fade-in d4"><span class="hl-purple">[VISUAL]</span> <span class="hl-dim">Analyzing incident_photo.jpg with image tool...</span></div>
+      <div class="line fade-in d4"><span class="hl-purple">[VISUAL]</span> <span class="hl-white">Visible text detected: "SERVER ROOM 3B — DOOR AJAR"</span></div>
+      <div class="line fade-in d4"><span class="hl-purple">[VISUAL]</span> <span class="hl-white">Anomaly detected: unauthorized access badge visible</span></div>
+      <div class="line" style="margin-top: 8px;">&nbsp;</div>
+      <div class="line fade-in d5"><span class="hl-green">[MATCH]</span> <span class="hl-white">CSV log IP <span class="hl-amber">203.0.113.50</span> matches security camera timestamp</span></div>
+      <div class="line fade-in d5"><span class="hl-gray">→ Correlation confidence: HIGH</span></div>
+    </div>
+  </div>
+
+  <!-- Scene 3: Triage Report Output -->
+  <div class="scene">
+    <div class="scene-header">
+      <span class="dot red"></span>
+      <span>STEP 3 — Triage Report Generated</span>
+    </div>
+    <div class="terminal">
+      <div class="line"><span class="hl-amber">═══ TRIAGE REPORT ═══</span></div>
+      <div class="line"><span class="hl-gray">FILE: server_logs.csv + incident_photo.jpg</span></div>
+      <div class="line"><span class="hl-gray">TIMESTAMP: 2026-06-18 08:42 UTC</span></div>
+      <hr class="divider">
+
+      <div class="line"><span class="hl-dim">━━━ SUMMARY ━━━</span></div>
+      <div class="line"><span class="hl-white">Server room 3B breach detected. Photo shows door left ajar with</span></div>
+      <div class="line"><span class="hl-white">unauthorized badge  #3421 visible. Logs show root login from</span></div>
+      <div class="line"><span class="hl-white">external IP <span class="hl-amber">203.0.113.50</span> coinciding with breach timeframe.</span></div>
+      <hr class="divider">
+
+      <div class="line"><span class="hl-dim">━━━ CONCERNS IDENTIFIED ━━━</span></div>
+      <div class="line" style="margin-top: 6px;"><span class="tag tag-high">🚨 HIGH</span> <span class="hl-white">Root login from external IP 203.0.113.50</span></div>
+      <div class="line" style="padding-left: 32px;"><span class="hl-gray">- Direct root access via SSH, IP geolocates to unusual region</span></div>
+      <div class="line" style="margin-top: 6px;"><span class="tag tag-high">🚨 HIGH</span> <span class="hl-white">Physical security breach — Server Room 3B</span></div>
+      <div class="line" style="padding-left: 32px;"><span class="hl-gray">- Photo evidence of door ajar + unauthorized badge #3421</span></div>
+      <div class="line" style="margin-top: 6px;"><span class="tag tag-medium">⚠️ MEDIUM</span> <span class="hl-white">Auth failures from same IP (12 attempts in 2 min)</span></div>
+      <div class="line" style="padding-left: 32px;"><span class="hl-gray">- Possible brute-force precursor before successful root login</span></div>
+      <div class="line" style="margin-top: 6px;"><span class="tag tag-medium">⚠️ MEDIUM</span> <span class="hl-white">Unauthorized badge #3421 not in access roster</span></div>
+      <div class="line" style="padding-left: 32px;"><span class="hl-gray">- Badge not registered for Server Room 3B access level</span></div>
+      <hr class="divider">
+
+      <div class="line"><span class="hl-dim">━━━ THREAT ASSESSMENT ━━━</span></div>
+      <div class="line"><span class="hl-red">🚨 HIGH — ACTIVE INCIDENT IN PROGRESS</span></div>
+      <div class="line"><span class="hl-gray">Coordinated physical + digital breach. Immediate escalation required.</span></div>
+      <hr class="divider">
+
+      <div class="line"><span class="hl-dim">━━━ VERDICT ━━━</span></div>
+      <div class="line"><span class="hl-white">1. Block IP 203.0.113.50 at firewall immediately</span></div>
+      <div class="line"><span class="hl-white">2. Secure Server Room 3B — investigate badge #3421</span></div>
+      <div class="line"><span class="hl-white">3. Rotate root credentials — assume compromised</span></div>
+      <div class="line"><span class="hl-white">4. Review access logs for all server room entries in last 24h</span></div>
+    </div>
+  </div>
+
+  <div class="banner">
+    ✦ JARVIS processed 2 files in under 3 seconds ✦<br>
+    <span style="font-size: 12px; opacity: 0.6;">
+      3 HIGH findings · 2 MEDIUM findings · Correlation across file types
+    </span>
+  </div>
+
+  <div class="controls">
+    <button onclick="location.reload()">🔄 Replay Demo</button>
+    <button onclick="window.open('/jarvis-presentation.html','_blank')">📊 Open Full Presentation</button>
+  </div>
+
+  <p class="subtitle" style="margin-top: 20px;">
+    🎯 Trigger JARVIS yourself: <code style="background: rgba(255,255,255,0.06); padding: 2px 8px; border-radius: 4px;">jarvis [your description]</code>
+  </p>
+</div>
+
+</body>
+</html>

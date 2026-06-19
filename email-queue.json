@@ -1,0 +1,93 @@
+[
+  {
+    "id": "20260619-063922-238056",
+    "timestamp": "2026-06-19T06:39:27.974830+00:00",
+    "source": "forward",
+    "subject": "testing",
+    "sender": "{address: \"kaelyn_loh@students.edu.sg\", name;",
+    "url_count": 0,
+    "url_analysis": [],
+    "category": "low_concern",
+    "priority": "medium",
+    "one_line_summary": "this is just an email to test the bot :) thanks jarvis",
+    "longer_summary": "\ud83d\udce7 **Subject:** testing\n\ud83d\udc64 **From:** {address: \"kaelyn_loh@students.edu.sg\", name;\n\ud83d\udd17 **No links found**\n\n\ud83d\udcdd this is just an email to test the bot :) thanks jarvis",
+    "scam_flags": [],
+    "body": "this is just an email to test the bot :)\nthanks jarvis\n",
+    "analysis_url": "/analysis/20260619-063922-238056",
+    "discord_status": "pending",
+    "jarvis_status": "pending"
+  },
+  {
+    "id": "20260619-063929-907102",
+    "timestamp": "2026-06-19T06:39:39.141949+00:00",
+    "source": "forward",
+    "subject": "BWSS x SNGS Library Society Collaboration, Read for Books July and Website Write up",
+    "sender": "{address: \"lucia_wu@students.edu.sg\", name;",
+    "url_count": 0,
+    "url_analysis": [],
+    "category": "mild",
+    "priority": "medium",
+    "one_line_summary": "We will need to have a space in the library for the activity and sign up sheets so that attendance and participation can be captured.",
+    "longer_summary": "\ud83d\udce7 **Subject:** BWSS x SNGS Library Society Collaboration, Read for Books July and Website Write up\n\ud83d\udc64 **From:** {address: \"lucia_wu@students.edu.sg\", name;\n\ud83d\udd17 **No links found**\n\n\ud83d\udcdd Dear Lucia, Please also work with Exco to plan for the running of the Read for Books VIA in our library for the month of July (1- 31 July). I have ccd the exco in this email.  As for previous year, please do find out from Kaelyn about the reading slots to be organised during recess / after school. Please get Caylia to help you on this. We will need to have a space in the library for the activity and sign up sheets so that attendance and participation can be captured.  Also we need the website report to be done for the year with the activities for 2026. You can see the sample done for 2025 on t",
+    "scam_flags": [],
+    "body": "Dear Lucia,\nPlease also work with Exco to plan for the running of the Read for Books\nVIA in our library for the month of July (1- 31 July). I have ccd the exco\nin this email.\n\nAs for previous year, please do find out from Kaelyn about the reading\nslots to be organised during recess / after school. Please get Caylia to\nhelp you on this.\nWe will need to have a space in the library for the activity and sign up\nsheets so that attendance and participation can be captured.\n\nAlso we need the website report to be done for the year with the activities\nfor 2026. You can see the sample done for 2025 on the school website and\nuse this template but the content will have to be re-written for all the\nparagraphs as our activities for 2026 are different and include a suitable\nquote. (Leave a space for results and outcomes that are pending but state\nthe title and short description).\nCompetitions such as Prove It 2026 - results are still pending and this\nyear we are doing Page to Pitch, the Summit, Collaboration with Pubs and\nBowen etc\nDo get exco members to help you to draft the website report and ensure that\nthe statements are written with correct grammar and facts etc\n\nThank you\nWarm regards\nMrs Tan\n",
+    "analysis_url": "/analysis/20260619-063929-907102",
+    "discord_status": "pending",
+    "jarvis_status": "pending"
+  },
+  {
+    "id": "20260619-063945-630731",
+    "timestamp": "2026-06-19T06:39:56.673961+00:00",
+    "source": "forward",
+    "subject": "Thinking of you from across the world...",
+    "sender": "{address: \"luciafrancinewu@gmail.com\", name;",
+    "url_count": 0,
+    "url_analysis": [],
+    "category": "scam",
+    "priority": "low",
+    "one_line_summary": "You can buy Apple gift cards or send a quick Bitcoin transfer to the clearance agent.",
+    "longer_summary": "\ud83d\udce7 **Subject:** Thinking of you from across the world...\n\ud83d\udc64 **From:** {address: \"luciafrancinewu@gmail.com\", name;\n\ud83d\udd17 **No links found**\n\n\ud83d\udcdd Hello my dearest, I hope this message finds you well and safe. I am writing to you from our military base camp here in Syria. It is a very difficult and stressful environment, but reading your last message was the only bright light in my day. Being deployed out here makes you realize what is truly important in life. It gets very lonely, and I have spent many nights looking at the stars, wishing I had a special, honest partner to share my life with when I return home next month. I truly believe that meeting you online was destiny. I tried to call you on FaceTime yesterday, but the base security",
+    "scam_flags": [
+      [
+        3,
+        "\ud83d\udd10",
+        "Sensitive info request",
+        "Keywords: ['bank account']"
+      ],
+      [
+        5,
+        "\ud83c\udfad",
+        "Impersonation",
+        "Claims to be from: ['apple', 'bank']"
+      ],
+      [
+        14,
+        "\ud83d\udcb8",
+        "Crypto/alt payment",
+        "Mentions: ['bitcoin', 'gift card']"
+      ]
+    ],
+    "body": "Hello my dearest,\nI hope this message finds you well and safe. I am writing to you from our\nmilitary base camp here in Syria. It is a very difficult and stressful\nenvironment, but reading your last message was the only bright light in my\nday.\nBeing deployed out here makes you realize what is truly important in life.\nIt gets very lonely, and I have spent many nights looking at the stars,\nwishing I had a special, honest partner to share my life with when I return\nhome next month. I truly believe that meeting you online was destiny.\nI tried to call you on FaceTime yesterday, but the base security protocols\nare very strict. The military authorities block our video streaming\ncapabilities to protect our location data, so I can only send text emails.\nIt breaks my heart that I cannot see your beautiful face.\nA major problem has just come up. I requested an emergency leave allowance\nto fly out and finally be with you, but the administrative office requires\na \"leave processing fee\" of $67,000 to release my transit passport. Because\nI am deployed in a combat zone, my personal bank accounts are locked for\nsecurity until I return to civilian soil.\nCould you please help me cover this fee? You can buy Apple gift cards or\nsend a quick Bitcoin transfer to the clearance agent. I am so ashamed to\nask this of you, but you are the only person I trust in this world. I will\nhand you the cash to repay you the second I step off the plane.\nPlease save me from this place so we can start our life together.\nYours faithfully,\nCapt. James Rogers\n",
+    "analysis_url": "/analysis/20260619-063945-630731",
+    "discord_status": "pending",
+    "jarvis_status": "pending"
+  },
+  {
+    "id": "20260619-063956-677170",
+    "timestamp": "2026-06-19T06:40:03.693976+00:00",
+    "source": "forward",
+    "subject": "",
+    "sender": "kaelyn_loh@students.edu.sg",
+    "url_count": 0,
+    "url_analysis": [],
+    "category": "spam",
+    "priority": "medium",
+    "one_line_summary": "676767676767676767676767676767676767676767676767",
+    "longer_summary": "\ud83d\udce7 **Subject:** \n\ud83d\udc64 **From:** kaelyn_loh@students.edu.sg\n\ud83d\udd17 **No links found**\n\n\ud83d\udcdd 676767676767676767676767676767676767676767676767",
+    "scam_flags": [],
+    "body": "676767676767676767676767676767676767676767676767",
+    "analysis_url": "/analysis/20260619-063956-677170",
+    "discord_status": "pending",
+    "jarvis_status": "pending"
+  }
+]

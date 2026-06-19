@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARVIS — Immediate Openings: Remote Data Entry Operator / Virtual Ass</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --bg-section: rgba(255,255,255,0.02);
+    --border: rgba(255,255,255,0.06);
+    --text: #e0e0e0;
+    --text-heading: #ffffff;
+    --text-dim: rgba(255,255,255,0.35);
+    --text-muted: #333333;
+    --accent: #f59e0b;
+    --pre-bg: rgba(0,0,0,0.3);
+    --pre-text: rgba(255,255,255,0.7);
+    --link-color: #ef4444;
+  }
+  [data-theme="light"] {
+    --bg: #f5f5f0;
+    --bg-section: #ffffff;
+    --border: rgba(0,0,0,0.08);
+    --text: #333333;
+    --text-heading: #111111;
+    --text-dim: #555555;
+    --text-muted: #333333;
+    --accent: #d97706;
+    --pre-bg: rgba(0,0,0,0.03);
+    --pre-text: #333333;
+    --link-color: #dc2626;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 40px;
+    max-width: 900px;
+    margin: 0 auto;
+    transition: background 0.3s ease, color 0.3s ease;
+  }
+  .back { margin-bottom: 20px; }
+  .back a { color: var(--text-dim); text-decoration: none; font-size: 14px; }
+  .back a:hover { color: var(--accent); }
+  h1 { font-size: 26px; color: var(--text-heading); margin-bottom: 6px; }
+  .cat-badge {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 6px;
+    margin-bottom: 16px;
+  }
+  .meta { color: var(--text-dim); font-size: 13px; margin-bottom: 24px; }
+  .section {
+    background: var(--bg-section);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .section h2 { font-size: 15px; color: var(--accent); margin-bottom: 12px; }
+  .field { margin-bottom: 6px; font-size: 14px; }
+  .field .label { color: var(--text-dim); }
+  .field .value { color: var(--text); }
+  pre {
+    background: var(--pre-bg);
+    border-radius: 8px;
+    padding: 16px;
+    font-size: 13px;
+    line-height: 1.6;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    font-family: 'Fira Code', monospace;
+    color: var(--pre-text);
+  }
+  ul { list-style: none; }
+  li { padding: 6px 0; font-size: 14px; word-break: break-all; }
+  li a { color: var(--link-color); }
+</style>
+</head>
+<body>
+  <div class="back"><a href="/">← Back to Dashboard</a></div>
+  <span class="cat-badge" style="background:rgba(249,115,22,0.15);color:#f97316;">💰 Scam</span>
+  <h1>Immediate Openings: Remote Data Entry Operator / Virtual Assistant (Flexible Hours)</h1>
+  <p class="meta">{address: &quot;kaelyn_loh@students.edu.sg&quot;, name; · 2026-06-19T04:48:23.797Z · ID: 20260619-044824-453688</p>
+
+  <!-- JARVIS Analysis section (populated by JS) -->
+  <div class="section" id="jarvis-analysis">
+    <h2>🤖 JARVIS Analysis</h2>
+    <div id="inline-analysis" style="margin-bottom:12px;">
+      <div style="border-left:3px solid #eab308;padding:8px 12px;margin-bottom:8px;border-radius:4px;"><span style="font-weight:700;font-size:13px;">📊 Gibberish Score: 2/5</span><br><span style="font-size:12px;color:var(--text-dim);">Some unusual text patterns detected</span></div><div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);border-radius:8px;padding:10px 14px;margin-top:8px;">🚨 Analysis: 💰 Scam<br><span style="font-size:12px;color:var(--text-dim);">This email matches scam patterns — do not click links or reply.</span></div>
+    </div>
+    <p id="analysis-status" style="color:var(--text-dim);font-size:13px;">⏳ Analysing...</p>
+    <div id="analysis-result" style="font-size:14px;line-height:1.7;white-space:pre-wrap;font-family:'Fira Code',monospace;">**VERDICT: HIGH**
+
+**SUMMARY:**
+This is a classic "fake remote job" phishing/scam campaign impersonating Amazon Recruitment. The email uses an illegitimate domain (`amazon-hr-portal.com`) that mimics Amazon's branding, offers an unrealistically high salary ($35-45/hr for data entry), and funnels victims off-platform to Signal/Telegram for "text chat interviews" — a standard scam pattern to harvest personal info or demand upfront payments.
+
+**CONCERNS IDENTIFIED:**
+
+- **HIGH** — Sender domain `amazon-hr-portal.com` is NOT owned by Amazon (Amazon's legitimate career domains are `amazon.jobs`, `amazon.com`, and `amazondelivers.jobs` enforced by DMARC)
+- **HIGH** — Interview conducted exclusively via Signal/Telegram text chat (legitimate companies use video calls, phone screens, or formal platforms — not encrypted messaging apps for "documentation purposes")
+- **HIGH** — No Reply-To set, no Return-Path, no verifiable sender infrastructure
+- **MEDIUM** — $35-45/hr for remote data entry is 3-5x market rate for entry-level work
+- **MEDIUM** — Generic "we reviewed your resume on an online job board" (even if addressed to "Jarvis," this is a common mass-scam opener)
+
+**EMAIL INTELLIGENCE:**
+
+- **From header:** `Career Growth HR <recruiting@amazon-hr-portal.com>` — display name doesn't match the purported "Amazon Global Careers" signature
+- **Reply-To:** Not set (legitimate HR emails always set this)
+- **Return-Path:** Not set — indicates no SPF/DKIM alignment; the email likely originated from a compromised or throwaway sending host
+- **Domain analysis:** `amazon-hr-portal.com` was almost certainly registered recently for impersonation. Amazon does not use subdomain-style domains for recruiting.
+
+**URL ANALYSIS:**
+- No embedded links in the email body (scammers intentionally left URLs out to bypass link-filtering scanners)
+- The "action" funnel is instead an instruction to **manually download Signal/Telegram and message an interview code** — this is a deliberate evasion tactic
+
+**PHISHING INDICATORS:**
+
+| Red Flag | Evidence |
+|---|---|
+| Domain impersonation | `amazon-hr-portal.com` vs legitimate `amazon.jobs` |
+| Off-platform communication | Signal/Telegram "text chat only" interview |
+| Unrealistic pay | $35-45/hr for basic data entry |
+| Urgency | "Immediate openings", "Immediate interview" |
+| No contact channels | No Reply-To, no phone number, no physical address |
+| Odd formatting | Capitalized disclaimer, bullet section in parentheses looks hand-tuned |
+| "Do not reply" instruction | Classic tactic to prevent bounced/failed delivery detection |
+
+**VERDICT:**
+🚨 **This is a job scam.** Do not respond. Do not download Signal/Telegram and message the "Hiring Manager." Do not provide any personal information. The goal is almost certainly to extract PII (passport, NRIC, bank details) or demand an "advance training fee" once you engage on Signal.
+
+**Recommended action:** Mark as spam/phishing and delete. If you actively use Amazon's career portal, you may optionally forward the email to `stop-spoofing@amazon.com` for their security team.</div>
+  </div>
+
+  <div class="section">
+    <h2>📋 Summary</h2>
+    <p style="font-size:14px;line-height:1.7;color:var(--text);">📧 **Subject:** Immediate Openings: Remote Data Entry Operator / Virtual Assistant (Flexible Hours)
+👤 **From:** {address: &quot;kaelyn_loh@students.edu.sg&quot;, name;
+🔗 **No links found**
+
+📝 From: Career Growth HR &lt;recruiting@amazon-hr-portal.com&gt;   Dear Jarvis, We reviewed your resume on an online job board, and your qualifications match our current openings for a Remote Data Entry Operator / Virtual Assistant. This is a full-time or part-time remote position. You can work from home and set your own hours. Job Details:     - Salary: $35.00 \u2013 $45.00 per hour *(Unrealistically high for    entry-level work)*    - Hours: Flexible (15\u201340 hours per week)    - Benefits: Health, Dental, 401k, and Paid Time Off (after 30 days)  Responsibilities:     - Transcribe and enter data i</p>
+  </div>
+
+  <div class="section">
+    <h2>📋 Email Headers</h2>
+    <div class="field"><span class="label">From:</span> <span class="value">{address: &quot;kaelyn_loh@students.edu.sg&quot;, name;</span></div>
+    <div class="field"><span class="label">Subject:</span> <span class="value">Immediate Openings: Remote Data Entry Operator / Virtual Assistant (Flexible Hours)</span></div>
+    <div class="field"><span class="label">Date:</span> <span class="value">2026-06-19T04:48:23.797Z</span></div>
+  </div>
+
+  <div class="section">
+    <h2>📝 Full Body</h2>
+    <pre>From: Career Growth HR &lt;recruiting@amazon-hr-portal.com&gt;
+
+ Dear Jarvis,
+We reviewed your resume on an online job board, and your qualifications
+match our current openings for a Remote Data Entry Operator / Virtual
+Assistant.
+This is a full-time or part-time remote position. You can work from home
+and set your own hours.
+Job Details:
+
+   - Salary: $35.00 \u2013 $45.00 per hour *(Unrealistically high for
+   entry-level work)*
+   - Hours: Flexible (15\u201340 hours per week)
+   - Benefits: Health, Dental, 401k, and Paid Time Off (after 30 days)
+
+Responsibilities:
+
+   - Transcribe and enter data into our secure system.
+   - Maintain and update digital files.
+   - Perform basic administrative tasks as assigned.
+
+Next Steps:
+To schedule an immediate interview, you must download the Signal Messenger
+or Telegram app on your phone and add our Hiring Manager, Sarah Jenkins,
+using the interview code #AMZ-7702.
+*Please note: Interviews are conducted via text chat only for documentation
+purposes. Do not reply directly to this email.*
+Sincerely,
+The Talent Acquisition Team
+Amazon Global Careers Inc.
+</pre>
+  </div>
+<script>
+<script>
+// JARVIS Analysis
+const CACHED_ANALYSIS = null;
+
+const analysisStatus = document.getElementById('analysis-status');
+const analysisResult = document.getElementById('analysis-result');
+
+if (CACHED_ANALYSIS && CACHED_ANALYSIS.length > 20) {
+  analysisStatus.textContent = '✅ Complete';
+  analysisStatus.style.color = '#22c55e';
+} else if (analysisResult) {
+  analysisStatus.textContent = 'ℹ️ Note';
+  analysisResult.textContent = 'Cached analysis not available. Server-side analysis ran during ingestion - check the category badge for our assessment.';
+}
+</script></body>
+</html>

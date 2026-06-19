@@ -1,0 +1,28 @@
+{
+  "users": {
+    "1515894108466450559": [
+      {
+        "task": "practice drums",
+        "done": true,
+        "created": "2026-06-17T07:49:44.121785",
+        "completed": "2026-06-17T07:49:47.037132"
+      },
+      {
+        "task": "learn paradiddles",
+        "done": false,
+        "created": "2026-06-17T07:49:44.160001"
+      }
+    ],
+    "1507659225768136785": [
+      {
+        "task": "fix the bot",
+        "done": false,
+        "created": "2026-06-17T07:49:44.233069"
+      }
+    ]
+  },
+  "metadata": {
+    "version": 1,
+    "last_backup": null
+  }
+}

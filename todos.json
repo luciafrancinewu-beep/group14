@@ -1,0 +1,119 @@
+{
+  "tasks": [
+    {
+      "id": 3,
+      "author": "flinss",
+      "task": "plan wedding",
+      "status": "pending",
+      "created_at": "2026-06-17 07:50 UTC",
+      "priority": "high"
+    },
+    {
+      "id": 5,
+      "author": "everyone",
+      "task": "world adomination by friday",
+      "status": "done",
+      "created_at": "2026-06-17 07:54 UTC",
+      "priority": "high",
+      "completed_at": "2026-06-17 08:06 UTC",
+      "completed_by": "kaelyn"
+    },
+    {
+      "id": 2,
+      "author": "ZGuy",
+      "task": "make discord app",
+      "status": "pending",
+      "created_at": "2026-06-17 07:50 UTC",
+      "priority": "medium"
+    },
+    {
+      "id": 4,
+      "author": "rxt",
+      "task": "flinss wedding with group14bot tmrw",
+      "status": "pending",
+      "created_at": "2026-06-17 07:52 UTC",
+      "priority": "medium"
+    },
+    {
+      "id": 6,
+      "author": "flinss",
+      "task": "decide on wedding date",
+      "status": "pending",
+      "created_at": "2026-06-17 08:34 UTC",
+      "priority": "high"
+    },
+    {
+      "id": 7,
+      "author": "flinss",
+      "task": "choose venue",
+      "status": "pending",
+      "created_at": "2026-06-17 08:34 UTC",
+      "priority": "high"
+    },
+    {
+      "id": 8,
+      "author": "flinss",
+      "task": "pick color scheme",
+      "status": "pending",
+      "created_at": "2026-06-17 08:34 UTC",
+      "priority": "medium"
+    },
+    {
+      "id": 9,
+      "author": "flinss",
+      "task": "send out invitations",
+      "status": "pending",
+      "created_at": "2026-06-17 08:34 UTC",
+      "priority": "medium"
+    },
+    {
+      "id": 10,
+      "author": "flinss",
+      "task": "find a caterer",
+      "status": "pending",
+      "created_at": "2026-06-17 08:34 UTC",
+      "priority": "medium"
+    },
+    {
+      "id": 11,
+      "author": "flinss",
+      "task": "decide on cake flavor",
+      "status": "pending",
+      "created_at": "2026-06-17 08:34 UTC",
+      "priority": "low"
+    },
+    {
+      "id": 12,
+      "author": "flinss",
+      "task": "pick first dance song",
+      "status": "pending",
+      "created_at": "2026-06-17 08:34 UTC",
+      "priority": "low"
+    },
+    {
+      "id": 13,
+      "author": "flinss",
+      "task": "make sure seori is not invited",
+      "status": "pending",
+      "created_at": "2026-06-17 08:34 UTC",
+      "priority": "high"
+    },
+    {
+      "id": 14,
+      "author": "rxt",
+      "task": "math hw due friday",
+      "status": "pending",
+      "created_at": "2026-06-18 09:56 SGT",
+      "priority": "high"
+    }
+  ],
+  "nextId": 15,
+  "channelId": "1515662136842522797",
+  "allowed_users": {
+    "1507659225768136785": "flinss",
+    "1023801044796452864": "rxt",
+    "1313474004505591860": "deyuan",
+    "1515894108466450559": "kaelyn",
+    "651679356082716684": "zguy10"
+  }
+}

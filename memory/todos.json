@@ -1,0 +1,14 @@
+{
+  "todos": [
+    {
+      "id": "a709d15a",
+      "task": "hw math",
+      "dueDate": "2026-06-19",
+      "createdAt": "2026-06-18T02:05:59.544374",
+      "remindedDayBefore": false,
+      "remindedDayOf": false,
+      "completed": false,
+      "owner": "1023801044796452864"
+    }
+  ]
+}

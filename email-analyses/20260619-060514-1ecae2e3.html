@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARVIS — Manual Upload: Pdf</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --bg-section: rgba(255,255,255,0.02);
+    --border: rgba(255,255,255,0.06);
+    --text: #e0e0e0;
+    --text-heading: #ffffff;
+    --text-dim: rgba(255,255,255,0.35);
+    --text-muted: #333333;
+    --accent: #f59e0b;
+    --pre-bg: rgba(0,0,0,0.3);
+    --pre-text: rgba(255,255,255,0.7);
+    --link-color: #ef4444;
+  }
+  [data-theme="light"] {
+    --bg: #f5f5f0;
+    --bg-section: #ffffff;
+    --border: rgba(0,0,0,0.08);
+    --text: #333333;
+    --text-heading: #111111;
+    --text-dim: #555555;
+    --text-muted: #333333;
+    --accent: #d97706;
+    --pre-bg: rgba(0,0,0,0.03);
+    --pre-text: #333333;
+    --link-color: #dc2626;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 40px;
+    max-width: 900px;
+    margin: 0 auto;
+    transition: background 0.3s ease, color 0.3s ease;
+  }
+  .back { margin-bottom: 20px; }
+  .back a { color: var(--text-dim); text-decoration: none; font-size: 14px; }
+  .back a:hover { color: var(--accent); }
+  h1 { font-size: 26px; color: var(--text-heading); margin-bottom: 6px; }
+  .cat-badge {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 6px;
+    margin-bottom: 16px;
+  }
+  .meta { color: var(--text-dim); font-size: 13px; margin-bottom: 24px; }
+  .section {
+    background: var(--bg-section);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .section h2 { font-size: 15px; color: var(--accent); margin-bottom: 12px; }
+  .field { margin-bottom: 6px; font-size: 14px; }
+  .field .label { color: var(--text-dim); }
+  .field .value { color: var(--text); }
+  pre {
+    background: var(--pre-bg);
+    border-radius: 8px;
+    padding: 16px;
+    font-size: 13px;
+    line-height: 1.6;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    font-family: 'Fira Code', monospace;
+    color: var(--pre-text);
+  }
+  ul { list-style: none; }
+  li { padding: 6px 0; font-size: 14px; word-break: break-all; }
+  li a { color: var(--link-color); }
+</style>
+</head>
+<body>
+  <div class="back"><a href="/">← Back to Dashboard</a></div>
+  <span class="cat-badge" style="background:rgba(239,68,68,0.15);color:#ef4444;">🔴 Critical</span>
+  <h1>Manual Upload: Pdf</h1>
+  <p class="meta">File Upload ·  · ID: 20260619-060514-1ecae2e3</p>
+
+  <!-- JARVIS Analysis section (populated by JS) -->
+  <div class="section" id="jarvis-analysis">
+    <h2>🤖 JARVIS Analysis</h2>
+    <div id="inline-analysis" style="margin-bottom:12px;">
+      <div style="border-left:3px solid #eab308;padding:8px 12px;margin-bottom:8px;border-radius:4px;"><span style="font-weight:700;font-size:13px;">📊 Gibberish Score: 2/5</span><br><span style="font-size:12px;color:var(--text-dim);">Some unusual text patterns detected</span></div><div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);border-radius:8px;padding:10px 14px;margin-top:8px;">📋 Context: 🔴 Critical<br><span style="font-size:12px;color:var(--text-dim);">Homework due tomorrow (1 day left) — legitimate academic reminder.</span></div>
+    </div>
+    <p id="analysis-status" style="color:var(--text-dim);font-size:13px;">⏳ Analysing...</p>
+    <div id="analysis-result" style="font-size:14px;line-height:1.7;white-space:pre-wrap;font-family:'Fira Code',monospace;">Oh, this is a textbook phishing attempt dressed up as an "Academic Compliance Department" notice. Let me break it down for you.
+
+---
+
+**VERDICT: CRITICAL** 📚
+
+**SUMMARY:**
+This is a fabricated academic deadline threat designed to panic you into clicking a malicious portal link and handing over your student credentials. The urgency, vague language, missing recipient details, and lack of any actual university branding are all dead giveaways.
+
+**CONCERNS IDENTIFIED:**
+- **HIGH** — Generic "Dear Student" instead of your actual name
+- **HIGH** — Extreme urgency ("12 hours," "FINAL NOTICE," "automatic grade deduction")
+- **HIGH** — Threat of "suspension from future assessments" — almost no legitimate institution dangles suspension for a single homework late submission
+- **HIGH** — No actual university name, no course code, no lecturer name, no assignment title
+- **HIGH** — Request to enter credentials through a link (the portal URL is suspiciously not even shown in the extract — likely a spoofed domain)
+- **MEDIUM** — "Academic Compliance Department" is not a real department at any university
+
+**PHISHING INDICATORS:**
+1. **Manufactured urgency** — "within the next 12 hours"
+2. **Threat-based coercion** — grade deduction + suspension
+3. **Generic salutation** — "Dear Student" (they don't know who you are)
+4. **Credential harvesting** — "confirm your student credentials" on an external portal
+5. **Missing specifics** — no class, no teacher, no assignment name, no reference number
+6. **Suspicious sender** — "Academic Compliance Department" is not a real thing
+7. **Date format** — 20/6/2026 is DD/MM/YYYY which is non-standard for most English-speaking academic institutions
+
+**WHAT TO DO:**
+- ❌ Do **not** click any link in this email
+- ❌ Do **not** enter your credentials anywhere
+- ✅ Forward it to your school's IT security / phishing reporting address
+- ✅ Mark as phishing/spam
+- ✅ If you're genuinely worried about a late assignment, check directly on your school's official LMS/portal — not through this link
+
+This is a credential harvesting phishing campaign targeting students. Clean it out and move on. 🚮</div>
+  </div>
+
+  <div class="section">
+    <h2>📋 Summary</h2>
+    <p style="font-size:14px;line-height:1.7;color:var(--text);">Files uploaded:
+Untitled document (1).pdf (pdf, 30.1KB)
+
+Extracted content:
+
+
+--- Content from Untitled document (1).pdf ---
+Critical: Math Homework Must Be Completed Before 20/6/2026
+Dear Student,
+This is a FINAL NOTICE regarding your mathematics homework. Our records indicate that your
+assignment has not been submitted.
+Failure to complete the homework before 20/6/2026 will result in an automatic grade deduction
+and possible suspension from future assessments.
+To avoid penalties, immediately access the Homework Verification Portal below and confirm
+your student credentials:
+You must complete this process within the next 12 hours. Do not ignore this message.
+Academic Compliance Department</p>
+  </div>
+
+  <div class="section">
+    <h2>📋 Email Headers</h2>
+    <div class="field"><span class="label">From:</span> <span class="value">File Upload</span></div>
+    <div class="field"><span class="label">Subject:</span> <span class="value">Manual Upload: Pdf</span></div>
+  </div>
+
+  <div class="section">
+    <h2>📝 Full Body</h2>
+    <pre>
+
+--- Content from Untitled document (1).pdf ---
+Critical: Math Homework Must Be Completed Before 20/6/2026
+Dear Student,
+This is a FINAL NOTICE regarding your mathematics homework. Our records indicate that your
+assignment has not been submitted.
+Failure to complete the homework before 20/6/2026 will result in an automatic grade deduction
+and possible suspension from future assessments.
+To avoid penalties, immediately access the Homework Verification Portal below and confirm
+your student credentials:
+You must complete this process within the next 12 hours. Do not ignore this message.
+Academic Compliance Department</pre>
+  </div>
+<script>
+<script>
+// JARVIS Analysis
+const CACHED_ANALYSIS = null;
+
+const analysisStatus = document.getElementById('analysis-status');
+const analysisResult = document.getElementById('analysis-result');
+
+if (CACHED_ANALYSIS && CACHED_ANALYSIS.length > 20) {
+  analysisStatus.textContent = '✅ Complete';
+  analysisStatus.style.color = '#22c55e';
+} else if (analysisResult) {
+  analysisStatus.textContent = 'ℹ️ Note';
+  analysisResult.textContent = 'Cached analysis not available. Server-side analysis ran during ingestion - check the category badge for our assessment.';
+}
+</script></body>
+</html>

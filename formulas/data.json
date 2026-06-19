@@ -1,0 +1,158 @@
+{
+  "quadratics": [
+    {
+      "name": "Standard Form",
+      "formula": "ax\u00b2 + bx + c = 0",
+      "notes": "a \u2260 0"
+    },
+    {
+      "name": "Quadratic Formula",
+      "formula": "x = [-b \u00b1 \u221a(b\u00b2 - 4ac)] / 2a",
+      "notes": "Solves ax\u00b2 + bx + c = 0"
+    },
+    {
+      "name": "Discriminant",
+      "formula": "\u0394 = b\u00b2 - 4ac",
+      "notes": "\u0394 > 0: 2 real roots, \u0394 = 0: 1 real root, \u0394 < 0: no real roots"
+    },
+    {
+      "name": "Sum of Roots",
+      "formula": "\u03b1 + \u03b2 = -b / a",
+      "notes": "For ax\u00b2 + bx + c = 0"
+    },
+    {
+      "name": "Product of Roots",
+      "formula": "\u03b1\u03b2 = c / a",
+      "notes": "For ax\u00b2 + bx + c = 0"
+    },
+    {
+      "name": "Vertex Form",
+      "formula": "y = a(x - h)\u00b2 + k",
+      "notes": "Vertex at (h, k)"
+    },
+    {
+      "name": "Vertex x-coord",
+      "formula": "h = -b / 2a",
+      "notes": "Axis of symmetry"
+    },
+    {
+      "name": "Vertex y-coord",
+      "formula": "k = f(h) = c - b\u00b2/4a",
+      "notes": "Max/min value"
+    },
+    {
+      "name": "Factored Form",
+      "formula": "y = a(x - p)(x - q)",
+      "notes": "Roots at x = p, x = q"
+    },
+    {
+      "name": "Completing Square",
+      "formula": "x\u00b2 + bx = (x + b/2)\u00b2 - (b/2)\u00b2",
+      "notes": "Half the coefficient, square it"
+    }
+  ],
+  "forces": [
+    {
+      "name": "Newton's 2nd Law",
+      "formula": "F = ma",
+      "notes": "Force = mass \u00d7 acceleration"
+    },
+    {
+      "name": "Weight",
+      "formula": "W = mg",
+      "notes": "Weight = mass \u00d7 gravitational field (g \u2248 9.81 m/s\u00b2)"
+    },
+    {
+      "name": "Friction",
+      "formula": "F_f = \u03bcN",
+      "notes": "\u03bc = coefficient of friction, N = normal force"
+    },
+    {
+      "name": "Static Friction (max)",
+      "formula": "F_s(max) = \u03bc_s N",
+      "notes": "\u03bc_s = coefficient of static friction"
+    },
+    {
+      "name": "Kinetic Friction",
+      "formula": "F_k = \u03bc_k N",
+      "notes": "\u03bc_k = coefficient of kinetic friction (\u03bc_k < \u03bc_s)"
+    },
+    {
+      "name": "Hooke's Law",
+      "formula": "F = -kx",
+      "notes": "k = spring constant, x = displacement"
+    },
+    {
+      "name": "Spring Potential Energy",
+      "formula": "E_e = \u00bdkx\u00b2",
+      "notes": "Elastic potential energy stored"
+    },
+    {
+      "name": "Pressure",
+      "formula": "P = F / A",
+      "notes": "Pressure = Force / Area"
+    },
+    {
+      "name": "Density",
+      "formula": "\u03c1 = m / V",
+      "notes": "Density = mass / volume"
+    },
+    {
+      "name": "Buoyancy",
+      "formula": "F_b = \u03c1Vg",
+      "notes": "Archimedes' principle"
+    },
+    {
+      "name": "Net Force",
+      "formula": "F_net = \u03a3F",
+      "notes": "Vector sum of all forces"
+    },
+    {
+      "name": "Tension (pulley)",
+      "formula": "T = m(g \u00b1 a)",
+      "notes": "+ for upward acceleration"
+    }
+  ],
+  "moments": [
+    {
+      "name": "Moment / Torque",
+      "formula": "M = F \u00d7 d",
+      "notes": "Moment = Force \u00d7 perpendicular distance from pivot"
+    },
+    {
+      "name": "Principle of Moments",
+      "formula": "\u03a3M_cw = \u03a3M_ccw",
+      "notes": "For equilibrium: clockwise = anticlockwise"
+    },
+    {
+      "name": "Couple",
+      "formula": "C = F \u00d7 d",
+      "notes": "Two equal opposite forces, d = distance between them"
+    },
+    {
+      "name": "Torque (vector)",
+      "formula": "\u03c4 = r \u00d7 F",
+      "notes": "Cross product of position and force vectors"
+    },
+    {
+      "name": "Angular Force from Torque",
+      "formula": "\u03c4 = I\u03b1",
+      "notes": "\u03c4 = torque, I = moment of inertia, \u03b1 = angular accel"
+    },
+    {
+      "name": "Center of Mass",
+      "formula": "x_cm = \u03a3mx / \u03a3m",
+      "notes": "Weighted average position of mass"
+    },
+    {
+      "name": "Leverage",
+      "formula": "F_out \u00d7 d_out = F_in \u00d7 d_in",
+      "notes": "Work input = Work output (ideal)"
+    },
+    {
+      "name": "Moment of Inertia (point)",
+      "formula": "I = mr\u00b2",
+      "notes": "Point mass at distance r from axis"
+    }
+  ]
+}

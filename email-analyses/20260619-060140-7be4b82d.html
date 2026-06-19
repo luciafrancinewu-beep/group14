@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARVIS — Manual Upload: Pdf</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --bg-section: rgba(255,255,255,0.02);
+    --border: rgba(255,255,255,0.06);
+    --text: #e0e0e0;
+    --text-heading: #ffffff;
+    --text-dim: rgba(255,255,255,0.35);
+    --text-muted: #333333;
+    --accent: #f59e0b;
+    --pre-bg: rgba(0,0,0,0.3);
+    --pre-text: rgba(255,255,255,0.7);
+    --link-color: #ef4444;
+  }
+  [data-theme="light"] {
+    --bg: #f5f5f0;
+    --bg-section: #ffffff;
+    --border: rgba(0,0,0,0.08);
+    --text: #333333;
+    --text-heading: #111111;
+    --text-dim: #555555;
+    --text-muted: #333333;
+    --accent: #d97706;
+    --pre-bg: rgba(0,0,0,0.03);
+    --pre-text: #333333;
+    --link-color: #dc2626;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 40px;
+    max-width: 900px;
+    margin: 0 auto;
+    transition: background 0.3s ease, color 0.3s ease;
+  }
+  .back { margin-bottom: 20px; }
+  .back a { color: var(--text-dim); text-decoration: none; font-size: 14px; }
+  .back a:hover { color: var(--accent); }
+  h1 { font-size: 26px; color: var(--text-heading); margin-bottom: 6px; }
+  .cat-badge {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 6px;
+    margin-bottom: 16px;
+  }
+  .meta { color: var(--text-dim); font-size: 13px; margin-bottom: 24px; }
+  .section {
+    background: var(--bg-section);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .section h2 { font-size: 15px; color: var(--accent); margin-bottom: 12px; }
+  .field { margin-bottom: 6px; font-size: 14px; }
+  .field .label { color: var(--text-dim); }
+  .field .value { color: var(--text); }
+  pre {
+    background: var(--pre-bg);
+    border-radius: 8px;
+    padding: 16px;
+    font-size: 13px;
+    line-height: 1.6;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    font-family: 'Fira Code', monospace;
+    color: var(--pre-text);
+  }
+  ul { list-style: none; }
+  li { padding: 6px 0; font-size: 14px; word-break: break-all; }
+  li a { color: var(--link-color); }
+</style>
+</head>
+<body>
+  <div class="back"><a href="/">← Back to Dashboard</a></div>
+  <span class="cat-badge" style="background:rgba(234,179,8,0.15);color:#eab308;">🟡 Mild</span>
+  <h1>Manual Upload: Pdf</h1>
+  <p class="meta">File Upload ·  · ID: 20260619-060140-7be4b82d</p>
+
+  <!-- JARVIS Analysis section (populated by JS) -->
+  <div class="section" id="jarvis-analysis">
+    <h2>🤖 JARVIS Analysis</h2>
+    <div id="inline-analysis" style="margin-bottom:12px;">
+      <div style="border-left:3px solid #eab308;padding:8px 12px;margin-bottom:8px;border-radius:4px;"><span style="font-weight:700;font-size:13px;">📊 Gibberish Score: 2/5</span><br><span style="font-size:12px;color:var(--text-dim);">Some unusual text patterns detected</span></div><div style="background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.25);border-radius:8px;padding:10px 14px;margin-top:8px;">⚠️ Analysis: 🟡 Mild<br><span style="font-size:12px;color:var(--text-dim);">Some unusual elements — review if expected.</span></div>
+    </div>
+    <p id="analysis-status" style="color:var(--text-dim);font-size:13px;">⏳ Analysing...</p>
+    <div id="analysis-result" style="font-size:14px;line-height:1.7;white-space:pre-wrap;font-family:'Fira Code',monospace;">Alright, let me give you the full breakdown on this. This is a textbook phishing attempt.
+
+---
+
+**═══ TRIAGE REPORT ═══**
+**FILE:** Untitled document (1).pdf
+**TIMESTAMP:** 2026-06-19 06:01 UTC
+
+**━━━ SUMMARY ━━━**
+A fraudulent document masquerading as a "final notice" from an "Academic Compliance Department" threatening grade deduction and suspension for supposedly unsubmitted math homework. It pressures the recipient to "access a Homework Verification Portal" to "confirm student credentials" within 12 hours. No actual URL was embedded in this PDF (likely stripped in transit or meant to be printed/hand-typed), but the scam pattern is unmistakable.
+
+**━━━ CONCERNS IDENTIFIED ━━━**
+
+**🚨 HIGH — Active Phishing / Credential Harvesting**
+The entire premise is designed to steal student login credentials. No legitimate academic institution communicates via vaguely threatening PDFs with 12-hour ultimatums.
+
+**━ RED FLAGS CHECKLIST (16-point) ━**
+
+| # | Flag | Evidence |
+|---|------|----------|
+| 1 | 🕒 **Urgency/pressure** | "FINAL NOTICE", "must be completed before 20/6/2026", "within the next 12 hours", "Do not ignore this message" |
+| 4 | 😨 **Fear/manipulation** | Threatens "automatic grade deduction" and "possible suspension from future assessments" |
+| 5 | 🎭 **Impersonation** | Fakes being an "Academic Compliance Department" — a made-up-sounding academic authority |
+| 6 | 👤 **Generic greeting** | "Dear Student" — no actual name, no student ID, no course reference |
+| 7 | 🔗 **Portal bait** | Requests you to "access the Homework Verification Portal" and "confirm your student credentials" — classic credential harvesting lure |
+| 10 | 🚫 **No verification path** | "Do not ignore this message" — discourages verification by creating fear of consequences |
+| 11 | 📝 **Suspicious phrasing** | "Academic Compliance Department" is not a standard university department name; "automatically access the Homework Verification Portal below" is stilted language |
+| 15 | 🧩 **Vague details** | No institution name, no course code, no teacher/sender name, no reference number, no verifiable contact |
+
+**━━━ PHISHING INDICATORS ━━━**
+- **Impersonates an academic authority** — "Academic Compliance Department" doesn't exist at any real university
+- **Creates false scarcity** — "12 hours" deadline manufactured to bypass critical thinking
+- **Generic targeting** — "Dear Student" with no personalization means this was mass-distributed or sent to a random pool
+- **Threat-based coercion** — Grade deduction + suspension are high-stakes threats designed to override skepticism
+- **Portal lure** — "Verify credentials" is the payoff: they want username/password (and possibly student ID/DOB)
+
+**Real universities handle late homework differently:** email from your actual instructor, through the LMS (Canvas/Moodle/etc.), no 12-hour credential-verification portal nonsense.
+
+**━━━ THREAT ASSESSMENT ━━━**
+**🚨 HIGH** — Active credential phishing campaign targeting students. If the link were available and clicked, it would lead to a fake login page designed to harvest school credentials.
+
+**━━━ KEY DETAILS ━━━**
+- **Claimed deadline:** 20/6/2026 (before this date)
+- **False urgency window:** 12 hours
+- **Impersonated entity:** "Academic Compliance Department" (fictitious)
+- **Target:** Student login credentials
+- **Carrot/stick:** Grade deduction + suspension threats
+- **No actual course, instructor, or institution named** — zero personalization
+
+**━━━ VERDICT ━━━**
+**Do not engage.** Do not visit any portal mentioned in this document. If this arrived via email, report it as phishing. If you</div>
+  </div>
+
+  <div class="section">
+    <h2>📋 Summary</h2>
+    <p style="font-size:14px;line-height:1.7;color:var(--text);">Files uploaded:
+Untitled document (1).pdf (pdf, 30.1KB)
+
+Extracted content:
+
+
+--- Content from Untitled document (1).pdf ---
+Critical: Math Homework Must Be Completed Before 20/6/2026
+Dear Student,
+This is a FINAL NOTICE regarding your mathematics homework. Our records indicate that your
+assignment has not been submitted.
+Failure to complete the homework before 20/6/2026 will result in an automatic grade deduction
+and possible suspension from future assessments.
+To avoid penalties, immediately access the Homework Verification Portal below and confirm
+your student credentials:
+You must complete this process within the next 12 hours. Do not ignore this message.
+Academic Compliance Department</p>
+  </div>
+
+  <div class="section">
+    <h2>📋 Email Headers</h2>
+    <div class="field"><span class="label">From:</span> <span class="value">File Upload</span></div>
+    <div class="field"><span class="label">Subject:</span> <span class="value">Manual Upload: Pdf</span></div>
+  </div>
+
+  <div class="section">
+    <h2>📝 Full Body</h2>
+    <pre>
+
+--- Content from Untitled document (1).pdf ---
+Critical: Math Homework Must Be Completed Before 20/6/2026
+Dear Student,
+This is a FINAL NOTICE regarding your mathematics homework. Our records indicate that your
+assignment has not been submitted.
+Failure to complete the homework before 20/6/2026 will result in an automatic grade deduction
+and possible suspension from future assessments.
+To avoid penalties, immediately access the Homework Verification Portal below and confirm
+your student credentials:
+You must complete this process within the next 12 hours. Do not ignore this message.
+Academic Compliance Department</pre>
+  </div>
+<script>
+<script>
+// JARVIS Analysis
+const CACHED_ANALYSIS = null;
+
+const analysisStatus = document.getElementById('analysis-status');
+const analysisResult = document.getElementById('analysis-result');
+
+if (CACHED_ANALYSIS && CACHED_ANALYSIS.length > 20) {
+  analysisStatus.textContent = '✅ Complete';
+  analysisStatus.style.color = '#22c55e';
+} else if (analysisResult) {
+  analysisStatus.textContent = 'ℹ️ Note';
+  analysisResult.textContent = 'Cached analysis not available. Server-side analysis ran during ingestion - check the category badge for our assessment.';
+}
+</script></body>
+</html>
